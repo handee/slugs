@@ -24,8 +24,8 @@ cv2.namedWindow('input')
 
 def nothing(*arg):
     pass
-cv2.createTrackbar('Size of buffer', 'bgmodel', 110, 500, nothing)
-cv2.createTrackbar('Difference threshold', 'bgmodel', 10, 200, nothing)
+cv2.createTrackbar('Size of buffer', 'bgmodel', 60, 500, nothing)
+cv2.createTrackbar('Difference threshold', 'bgmodel', 30, 200, nothing)
 
 
 
@@ -66,7 +66,32 @@ for fname in flist:
 # threshold it to get a motion mask
     difference_thresh=cv2.getTrackbarPos('Difference threshold', 'bgmodel')
     ret,th1 = cv2.threshold(grey_difference_img,difference_thresh,255,cv2.THRESH_BINARY)
-    cv2.imshow('foregound',th1)
+
+    # create a 5x5 elipptical structuring element
+    element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+
+    #remove tiny foreground blobs
+    er=cv2.erode(th1,element,iterations=1); 
+    
+    connectivity = 4  
+    # Perform the operation
+    output = cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
+    # Get the results
+    # The first cell is the number of labels
+    num_labels = output[0]
+    # The second cell is the label matrix
+    labels = output[1]
+    # The third cell is the stat matrix
+    stats = output[2]
+    # The fourth cell is the centroid matrix
+    centroids = output[3]
+    out=cv2.merge([th1,th1,th1])
+    for point in centroids:
+       cv2.circle(out,(int(point[0]),int(point[1])),2,(0,255,0),-1)
+    #labels=cv2.applyColorMap(labels, cv2.COLORMAP_JET)
+    cv2.imshow('foregound',out)
+    np.savetxt("/tmp/tit{}_labels{}.txt".format(n,num_labels),labels,fmt='%i')
+    
 
 #uncommment the next few lines if you want to save the output
 #    fn="out/bgmovingav_big"+str(n).rjust(4,'0')+".png"
@@ -74,7 +99,6 @@ for fname in flist:
 #    fn="out/bgmovingav_bg_big"+str(n).rjust(4,'0')+".png"
 #    cv2.imwrite(fn,res);
     n+=1
-    print n
 
 
 #open cv window management/redraw stuff
