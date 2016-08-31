@@ -15,30 +15,6 @@ frames_of_background=15 # magic number: how many frames do we have in our
                         # moving average background model?
 difference_thresh=30 # magic number: how different does the background
               #have to be before it counts as background?
-###
-#
-# a function to prune the outputs of connected components, getting
-# rid of those which are un-slug-like because they are too big 
-#
-###
-def prune_outputs(o):
-    # The first cell is the number of labels
-    num_labels = o[0]
-    # The second cell is the label matrix
-    labels = o[1]
-    # The third cell is the stat matrix
-    stats = o[2]
-    # The fourth cell is the centroid matrix
-    centroids = o[3]
-    newcentroids=[]
-    newstats=[]
-    for i in range(0, num_labels):
-        if not (math.isnan(centroids[i][0])):
-            if (stats[i][4]<2000):
-                newcentroids.append(centroids[i])
-                newstats.append(stats[i])            
-
-    return(num_labels, newcentroids, newstats)
  
 ###
 #
@@ -113,28 +89,37 @@ for fname in flist:
    
         # now we can cut down our guess of slug location by ignoring the really
         # massive components - if there's camera shake, or something like that
-        # it'll give us a completely foreground object. connected components will
-        # also return a component that represents "background". 
+        # it'll give us a completely foreground object. cc will
+        # also return a component that represents "background" so we need
+        # to lose that. 
         num_labels,centroids,stats=prune_outputs(ccraw)    
         
         # The second cell is the label matrix
         labels = ccraw[1]
  
         out=cv2.merge([er,er,th1])
-        for point in centroids:
-           cv2.circle(out,(int(point[0]),int(point[1])),2,(0,255,0),-1)
-           print "i think we have a slug at {} {} in frame {}".format(point[0],point[1],n)
+        for i in range(0,len(centroids)):
+           cv2.circle(out,(int(centroids[i][0]),int(centroids[i][1])),2,(0,255,0),-1)
+           print "i think we have a slug at {} {} in frame {}".format(centroids[i][0],centroids[i][1],n)
+           # remember we need to adjust size estimates as we've shrunk 
+           # everything by a pixel in order to get rid of small foreground
+           # noise blobs
+           print "it's location may be y= {} h = {} x= {} w={}".format(stats[i][1]-2,stats[i][3]+4,stats[i][0]-2,stats[i][2]+4)
+           candidateslug=frame[stats[i][1]-2:stats[i][3]+stats[i][1]+2,stats[i][0]:stats[i][2]-2+stats[i][0]+2]
+           #uncommment the next few lines if you want to save any slug img
+           #it needs an output directory called "out"
+           fn="out/slugf"+str(n).rjust(4,'0')+".png"
+           cv2.imwrite(fn,candidateslug)
         if len(centroids)<1:
            print "the slug isn't moving in frame {}".format(n)
         cv2.imshow('foregound',out)
+        #uncommment the next few lines if you want to save any foreground img
+        #it needs an output directory called "out"
+        fn="out/foreground"+str(n).rjust(4,'0')+".png"
+        cv2.imwrite(fn,out);
     else: 
         cv2.imshow('input',th1) 
 
-#uncommment the next few lines if you want to save the output
-#    fn="out/bgmovingav_big"+str(n).rjust(4,'0')+".png"
-#    cv2.imwrite(fn,th1);
-#    fn="out/bgmovingav_bg_big"+str(n).rjust(4,'0')+".png"
-#    cv2.imwrite(fn,res);
     n+=1
 
 
