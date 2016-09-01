@@ -52,7 +52,13 @@ cv2.namedWindow('slug')
 
 n=0
 img=cv2.imread(flist[0])
+overrim=img
 movingaverage=np.float32(img)
+lastslugx=0
+lastslugy=0
+slugx=0
+slugy=0
+currentslugtrail=[]
 
 for fname in flist:
 #read a frame from the video capture obj 
@@ -78,6 +84,7 @@ for fname in flist:
     ret,th1 = cv2.threshold(grey_difference_img,difference_thresh,255,cv2.THRESH_BINARY)
 # if we've had enough frames of background then our motion estimate is probably stable...
     if (n>frames_of_background):
+        
  
         # create a 5x5 elipptical structuring element
         element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
@@ -101,17 +108,41 @@ for fname in flist:
         for i in range(0,len(centroids)):
            cv2.circle(out,(int(centroids[i][0]),int(centroids[i][1])),2,(0,255,0),-1)
            print "i think we have a slug at {} {} in frame {}".format(centroids[i][0],centroids[i][1],n)
+           slugx=centroids[i][0]
+           slugy=centroids[i][1]
+           currentslugtrail.append([n,slugx,slugy])
            # remember we need to adjust size estimates as we've shrunk 
            # everything by a pixel in order to get rid of small foreground
            # noise blobs
            print "it's location may be y= {} h = {} x= {} w={}".format(stats[i][1]-2,stats[i][3]+4,stats[i][0]-2,stats[i][2]+4)
-           candidateslug=frame[stats[i][1]-2:stats[i][3]+stats[i][1]+2,stats[i][0]:stats[i][2]-2+stats[i][0]+2]
+           candidateslug=frame[stats[i][1]-8:stats[i][3]+stats[i][1]+8,stats[i][0]-8:stats[i][2]+stats[i][0]+8]
            #uncommment the next few lines if you want to save any slug img
            #it needs an output directory called "out"
-           fn="out/slugf"+str(n).rjust(4,'0')+".png"
-           cv2.imwrite(fn,candidateslug)
+           #fn="out/slugf"+str(n).rjust(4,'0')+".png"
+           #cv2.imwrite(fn,candidateslug)
+
+
+           lastslugx=slugx
+           lastslugy=slugy
+          
         if len(centroids)<1:
            print "the slug isn't moving in frame {}".format(n)
+           if still==False:
+               currim=frame
+               for point in currentslugtrail:
+                   cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+                   cv2.circle(overrim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+               
+               cv2.circle(currim,(int(lastslugx),int(lastslugy)),2,(0,0,255),2)
+               cv2.circle(overrim,(int(lastslugx),int(lastslugy)),2,(0,0,255),2)
+               cv2.circle(currim,(int(currentslugtrail[0][1]),int(currentslugtrail[0][2])),2,(0,255,0),2)
+               cv2.circle(overrim,(int(currentslugtrail[0][1]),int(currentslugtrail[0][2])),2,(0,255,0),2)
+               fn="out/trail"+str(n).rjust(4,'0')+".png"
+               cv2.imwrite(fn,currim)
+               del currentslugtrail[:]
+               still=True
+        else :
+           still=False
         cv2.imshow('foregound',out)
         #uncommment the next few lines if you want to save any foreground img
         #it needs an output directory called "out"
@@ -119,7 +150,8 @@ for fname in flist:
         cv2.imwrite(fn,out);
     else: 
         cv2.imshow('input',th1) 
-
+    
+    
     n+=1
 
 
@@ -127,6 +159,8 @@ for fname in flist:
     ch = cv2.waitKey(5)
     if ch == 27:
         break
+fn="out/andthatsallfolks.png"
+cv2.imwrite(fn,overrim)
 cv2.destroyAllWindows()
 
 
