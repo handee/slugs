@@ -82,6 +82,9 @@ for fname in flist:
     grey_difference_img = cv2.cvtColor(difference_img, cv2.COLOR_BGR2GRAY)
 # threshold it to get a motion mask
     ret,th1 = cv2.threshold(grey_difference_img,difference_thresh,255,cv2.THRESH_BINARY)
+    if (n==15): 
+        fn="out/startdisks.png"
+        cv2.imwrite(fn,movingaverage)
 # if we've had enough frames of background then our motion estimate is probably stable...
     if (n>frames_of_background):
         
@@ -161,6 +164,8 @@ for fname in flist:
         break
 fn="out/andthatsallfolks.png"
 cv2.imwrite(fn,overrim)
+fn="out/enddisks.png"
+cv2.imwrite(fn,movingaverage)
 cv2.destroyAllWindows()
 
 
