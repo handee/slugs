@@ -17,8 +17,10 @@ class Slug:
     still=False
 
     def update_location(s, o, n):
-        num_labels,centroids,stats=s.prune_outputs(o)    
-      
+        num_blobs,centroids,stats=s.prune_outputs(o)    
+        if (len(centroids)>1):
+           for i in range(0, len(centroids)):
+              print "{} oops candidate at {} {}, left {} top {} width {} height {} area {}".format(n,centroids[i][0],centroids[i][1],stats[i][0], stats[i][1], stats[i][2], stats[i][3], stats[i][4])
         if len(centroids)<1:
            if s.still==False:
                # the slug has just stopped
@@ -33,7 +35,9 @@ class Slug:
             s.lastslugy=s.slugy
             s.still=False
         print "slug is at {} {}. We have {} trails. Still is {}".format(s.slugx, s.slugy, len(s.slugtrails), s.still)
-        return(num_labels, centroids, stats)
+
+        # by the time we get to this stage, num_blobs should be 1!
+        return(num_blobs, centroids, stats)
 
 ###
 #
@@ -55,8 +59,11 @@ class Slug:
                 if (stats[i][4]<2000):
                     newcentroids.append(centroids[i])
                     newstats.append(stats[i])            
+        num_blobs=len(newcentroids) 
+        return(num_blobs, newcentroids, newstats)
 
-        return(num_labels, newcentroids, newstats)
+
+
 # takes the slug trails and draws the pics    
     def visualise_trails(s,frame):    
         for currenttrail in s.slugtrails:

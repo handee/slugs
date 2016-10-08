@@ -1,30 +1,45 @@
 #!/usr/bin/python
 import glob
+import ConfigParser
 import cv2
 import common
 import video
 import math
 import numpy as np
 from slug import Slug
- 
-# edit this line to point to the right directory of jpgs
-#inputdir="/dcs/hmd1/data/lizzie/"
-#inputdir="/home/hmd1/dcshome2/data/lizzie/"
-#inputdir="/home/hannah/Videos/lizzieslug/"
-inputdir="/home/hannah/Videos/slugtest/"
 
-frames_of_background=15 # magic number: how many frames do we have in our
-                        # moving average background model?
-difference_thresh=30 # magic number: how different does the background
-              #have to be before it counts as background?
- 
- 
+current_slug='s1'
+
+
+config = ConfigParser.ConfigParser()
+config.read('config.cfg')
+inputdir= config.get(current_slug,'image_folder')
+print inputdir
+fbuffer=config.getint(current_slug,'frames_of_background') 
+difference_thresh=config.getint(current_slug,'difference_threshold') 
+# arena corners
+atlx=config.getint(current_slug,'top_left_x') 
+atly=config.getint(current_slug,'top_left_y') 
+atrx=config.getint(current_slug,'top_right_x') 
+atry=config.getint(current_slug,'top_right_y') 
+ablx=config.getint(current_slug,'bottom_left_x') 
+ably=config.getint(current_slug,'bottom_left_y') 
+abrx=config.getint(current_slug,'bottom_right_x') 
+abry=config.getint(current_slug,'bottom_right_y') 
+
+# set up arena transformation into approximate millimetres
+pts_arena=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
+pts_world=np.float32([[0,0],[580,0],[0,420],[580,420]])
+tm = cv2.getPerspectiveTransform(pts_arena,pts_world)
+    
+
 # read directory, get list of files, sort
 flist=glob.glob(inputdir+"*.jpg")
 flist.sort()
 
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
+cv2.namedWindow('warp')
 cv2.namedWindow('slug')
 
 n=0
@@ -33,10 +48,13 @@ overrim=img
 movingaverage=np.float32(img)
 thisslug = Slug()
 
+
+
 for fname in flist:
 #read a frame from the video capture obj 
     frame=cv2.imread(fname)
-    fbuffer=frames_of_background
+    warp=cv2.warpPerspective(frame,tm,(580,420))
+    cv2.imshow('warp',warp)
 #let's deal with that pesky zero case before we divide by fbuffer
     if fbuffer==0:
         fbuffer=1
@@ -56,7 +74,7 @@ for fname in flist:
         fn="out/startdisks.png"
         cv2.imwrite(fn,movingaverage)
 # if we've had enough frames of background then our motion estimate is probably stable...
-    if (n>frames_of_background):
+    if (n>fbuffer):
         
         # create a 5x5 elipptical structuring element
         element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
@@ -72,8 +90,8 @@ for fname in flist:
         cv2.imshow('foregound',out)
         #uncommment the next few lines if you want to save any foreground img
         #it needs an output directory called "out"
-        fn="out/foreground"+str(n).rjust(4,'0')+".png"
-        cv2.imwrite(fn,out);
+        #fn="out/foreground"+str(n).rjust(4,'0')+".png"
+        #cv2.imwrite(fn,out);
     
         
     n+=1
