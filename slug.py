@@ -16,7 +16,7 @@ class Slug:
     slugtrails=[]
     still=False
 
-    def update_location(s, o, n):
+    def update_location(s, o, n, a):
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if (len(centroids)>1):
            for i in range(0, len(centroids)):

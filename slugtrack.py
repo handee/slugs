@@ -7,6 +7,7 @@ import video
 import math
 import numpy as np
 from slug import Slug
+from arena import Arena
 
 current_slug='s1'
 
@@ -27,11 +28,7 @@ ably=config.getint(current_slug,'bottom_left_y')
 abrx=config.getint(current_slug,'bottom_right_x') 
 abry=config.getint(current_slug,'bottom_right_y') 
 
-# set up arena transformation into approximate millimetres
-pts_arena=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
-pts_world=np.float32([[0,0],[580,0],[0,420],[580,420]])
-tm = cv2.getPerspectiveTransform(pts_arena,pts_world)
-    
+corners=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
 
 # read directory, get list of files, sort
 flist=glob.glob(inputdir+"*.jpg")
@@ -39,21 +36,21 @@ flist.sort()
 
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
-cv2.namedWindow('warp')
 cv2.namedWindow('slug')
+cv2.namedWindow('warp')
 
 n=0
 img=cv2.imread(flist[0])
 overrim=img
 movingaverage=np.float32(img)
 thisslug = Slug()
-
+a= Arena(corners);
 
 
 for fname in flist:
 #read a frame from the video capture obj 
     frame=cv2.imread(fname)
-    warp=cv2.warpPerspective(frame,tm,(580,420))
+    warp=a.crop_and_warp(frame)
     cv2.imshow('warp',warp)
 #let's deal with that pesky zero case before we divide by fbuffer
     if fbuffer==0:
@@ -84,7 +81,7 @@ for fname in flist:
         connectivity = 4  
         ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
    
-        num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
+        num_labels,centroids,stats=thisslug.update_location(ccraw,n,a)    
         
         out=cv2.merge([er,er,th1])
         cv2.imshow('foregound',out)
