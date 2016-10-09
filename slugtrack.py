@@ -39,12 +39,13 @@ cv2.namedWindow('foregound')
 cv2.namedWindow('slug')
 cv2.namedWindow('warp')
 
+a= Arena(corners);
 n=0
 img=cv2.imread(flist[0])
-overrim=img
-movingaverage=np.float32(img)
-thisslug = Slug()
-a= Arena(corners);
+warp=a.crop_and_warp(img)
+overrim=warp
+movingaverage=np.float32(warp)
+thisslug = Slug(a)
 
 
 for fname in flist:
@@ -56,7 +57,7 @@ for fname in flist:
     if fbuffer==0:
         fbuffer=1
     alpha=float(1.0/fbuffer)
-    img_blur = cv2.GaussianBlur(frame, (5, 5), -1)
+    img_blur = cv2.GaussianBlur(warp, (5, 5), -1)
 # build the background model from the blurred input image
     cv2.accumulateWeighted(img_blur,movingaverage,alpha)
 # convert to absolute values and uint8
@@ -81,7 +82,7 @@ for fname in flist:
         connectivity = 4  
         ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
    
-        num_labels,centroids,stats=thisslug.update_location(ccraw,n,a)    
+        num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
         
         out=cv2.merge([er,er,th1])
         cv2.imshow('foregound',out)
