@@ -13,10 +13,6 @@ class Arena:
  # transformation matrix
     tm=[]
 
-    def __init__(s,dimensions):
-    # set up arena transformation into approximate millimetres
-        s.pts_arena=dimensions
-        s.tm = cv2.getPerspectiveTransform(s.pts_arena,s.pts_world)
     
     def crop_and_warp(s, img):
     # warps and crops an image so it's just the arena and a pixel is
@@ -29,4 +25,8 @@ class Arena:
         pt=np.array([[x,y]])
         (nx,ny)=cv2.perspectiveTransform(pt, s.tm)
         return(nx,ny) 
+
+    def update_location(s,corners):
+        s.pts_arena=corners
+        s.tm = cv2.getPerspectiveTransform(s.pts_arena,s.pts_world)
 
