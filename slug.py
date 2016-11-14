@@ -21,23 +21,35 @@ class Slug:
 
     def update_location(s, o, n):
         num_blobs,centroids,stats=s.prune_outputs(o)    
-        if (len(centroids)>1):
-           for i in range(0, len(centroids)):
-              print "{} oops candidate at {} {}, left {} top {} width {} height {} area {}".format(n,centroids[i][0],centroids[i][1],stats[i][0], stats[i][1], stats[i][2], stats[i][3], stats[i][4])
         if len(centroids)<1:
            if s.still==False:
+              print "Adding a slugtrail to our trails"
                # the slug has just stopped
               s.slugtrails.append(list(s.currentslugtrail))
               del s.currentslugtrail[:]
               s.still=True
-        else:
-            s.slugx=centroids[0][0]
-            s.slugy=centroids[0][1]
-            s.currentslugtrail.append([n,s.slugx,s.slugy])
-            s.lastslugx=s.slugx
-            s.lastslugy=s.slugy
-            s.still=False
-        print "slug is at {} {}. We have {} trails. Still is {}".format(s.slugx, s.slugy, len(s.slugtrails), s.still)
+        if (len(centroids)>=1):
+           if (len(centroids)==1):
+              i=0
+           else:
+               mindist=100000
+               closest=0
+               for i in range(0, len(centroids)):
+                  print "{} candidate at {} {}, left {} top {} width {} height {} area {}".format(n, centroids[i][0], centroids[i][1], stats[i][0], stats[i][1], stats[i][2], stats[i][3], stats[i][4])
+                  dslug=((centroids[i][0]-s.lastslugx)* (centroids[i][0]-s.lastslugx) + (centroids[i][1]-s.lastslugy)* (centroids[i][1]-s.lastslugy)) 
+                  if (dslug<mindist):
+                     mindist=dslug
+                     closest=i
+                  print "mindist {} dslug {} closest {} i {}".format(mindist,dslug,closest,i)
+
+
+           s.slugx=centroids[i][0]
+           s.slugy=centroids[i][1]
+           s.currentslugtrail.append([n,s.slugx,s.slugy])
+           s.lastslugx=s.slugx
+           s.lastslugy=s.slugy
+           s.still=False
+           print "slug is at {} {}. We have {} trails. Still is {}".format(s.slugx, s.slugy, len(s.slugtrails), s.still)
 
         # by the time we get to this stage, num_blobs should be 1!
         return(num_blobs, centroids, stats)
@@ -69,12 +81,14 @@ class Slug:
 
 # takes the slug trails and draws the pics    
     def visualise_trails(s,frame):    
+        print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
         for currenttrail in s.slugtrails:
-           currim=frame
-           for point in currenttrail:
-               cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+           currim=frame.copy()
+           if (len(currenttrail)>3):
+               for point in currenttrail:
+                   cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
                cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
                cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-           fn="out/trail"+str(currenttrail[0][0]).rjust(4,'0')+".png"
-           cv2.imwrite(fn,currim)
+               fn="out/trail{}.png".format(currenttrail[0][0],'03')
+               cv2.imwrite(fn,currim)
      
