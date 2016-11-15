@@ -40,16 +40,17 @@ class Slug:
                   if (dslug<mindist):
                      mindist=dslug
                      closest=i
-                  print "mindist {} dslug {} closest {} i {}".format(mindist,dslug,closest,i)
+                  print "mindist {} dslug {} closest: {}  i: {}".format(mindist,dslug,closest,i)
+                  print "lastslugx {} lastslugy {} ".format(s.lastslugx, s.lastslugy)
 
-
+           
            s.slugx=centroids[i][0]
            s.slugy=centroids[i][1]
+           print "settled on {} {}".format(s.slugx,s.slugy)
            s.currentslugtrail.append([n,s.slugx,s.slugy])
            s.lastslugx=s.slugx
            s.lastslugy=s.slugy
            s.still=False
-           print "slug is at {} {}. We have {} trails. Still is {}".format(s.slugx, s.slugy, len(s.slugtrails), s.still)
 
         # by the time we get to this stage, num_blobs should be 1!
         return(num_blobs, centroids, stats)
@@ -78,17 +79,30 @@ class Slug:
         return(num_blobs, newcentroids, newstats)
 
 
+    def highlight(s,img):
+        if (s.still):
+           cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(0,0,255),-1)
+        else:
+           cv2.circle(img,(int(s.slugx),int(s.slugy)),2,(0,255,0),-1)
+        return img
 
-# takes the slug trails and draws the pics    
-    def visualise_trails(s,frame):    
+# takes the slug trails as a set and draws the pics    
+    def visualise_trails(s,movingav,filelist):    
         print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
+        overim=movingav.copy()
         for currenttrail in s.slugtrails:
-           currim=frame.copy()
            if (len(currenttrail)>3):
+               currim=cv2.imread(filelist[currenttrail[0][0]])
                for point in currenttrail:
                    cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+                   cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
                cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
                cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
+               cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
+               cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
                fn="out/trail{}.png".format(currenttrail[0][0],'03')
                cv2.imwrite(fn,currim)
-     
+        fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
+        cv2.imwrite(fn,overim)
+ 
+         
