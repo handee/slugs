@@ -58,7 +58,7 @@ warp=a.crop_and_warp(grey)
 overrim=warp
 movingaverage=np.float32(warp)
 thisslug = Slug(a)
-
+warplist=[]
 
 for fname in flist:
     if (n<startframe):
@@ -71,7 +71,6 @@ for fname in flist:
         grey=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         warp=a.crop_and_warp(grey)
         cv2.imshow('warp',warp)
-    #let's deal with that pesky zero case before we divide by fbuffer
         if fbuffer==0:
             fbuffer=1
         alpha=float(1.0/fbuffer)
@@ -101,12 +100,21 @@ for fname in flist:
             num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
             
             out=cv2.merge([er,er,th1])
+            slugviz=cv2.merge([warp,warp,warp])
+            thisslug.highlight(slugviz);
             cv2.imshow('foregound',out)
-            #uncommment the next few lines if you want to save any foreground img
-            #it needs an output directory called "out"
-            #fn="out/foreground"+str(n).rjust(4,'0')+".png"
-            #cv2.imwrite(fn,out);
+            cv2.imshow('slug',slugviz)
+       #uncommment the next few lines if you want to save any foreground img
+       #it needs an output directory called "out"
+       #fn="out/foreground"+str(n).rjust(4,'0')+".png"
+       #cv2.imwrite(fn,out);
         
+       #fn="out/slugviz"+str(n).rjust(4,'0')+".png"
+       #cv2.imwrite(fn,slugviz);
+        fn="out/warp{}.png".format(n,"03")
+        cv2.imwrite(fn,warp) 
+        warplist.append(fn)
+    #let's deal with that pesky zero case before we divide by fbuffer
             
         n+=1
     if (n>=endframe):
@@ -138,7 +146,7 @@ for fname in flist:
     if ch == 27:
         break
 output=cv2.merge([movingaverage,movingaverage,movingaverage])
-thisslug.visualise_trails(output)
+thisslug.visualise_trails(output,warplist)
 fn="out/andthatsallfolks.png"
 cv2.imwrite(fn,overrim)
 fn="out/enddisks.png"
