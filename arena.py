@@ -12,6 +12,8 @@ class Arena:
     pts_arena=[]
  # transformation matrix
     tm=[]
+    old_pts=[]
+    old_tm=[]
 
     
     def crop_and_warp(s, img):
@@ -27,6 +29,9 @@ class Arena:
         return(nx,ny) 
 
     def update_location(s,corners):
+        if (len(s.pts_arena)>0) :
+           s.old_pts.append(s.pts_arena) 
+           s.old_tm.append(s.tm) 
         s.pts_arena=corners
         s.tm = cv2.getPerspectiveTransform(s.pts_arena,s.pts_world)
 

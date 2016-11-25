@@ -8,7 +8,8 @@ import math
 import numpy as np
 from slug import Slug
 from arena import Arena
-current_config_file='slug2.cfg'
+current_config_file='short_test_seq.cfg'
+#current_config_file='slug2.cfg'
 
 
 setup_section='s0'
@@ -53,10 +54,14 @@ corners=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]])
 
 a.update_location(corners);
 img=cv2.imread(flist[0])
-grey=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-warp=a.crop_and_warp(grey)
+#grey=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+warp=a.crop_and_warp(img)
 overrim=warp
-movingaverage=np.float32(warp)
+#movingaverage=np.float32(warp)
+fgbg=cv2.createBackgroundSubtractorMOG2()
+x=fgbg.getVarThreshold() 
+print x
+fgbg.setVarThreshold(difference_thresh) 
 thisslug = Slug(a)
 warplist=[]
 
@@ -68,49 +73,51 @@ for fname in flist:
 #read a frame from the video capture obj 
         frame=cv2.imread(fname)
     # make that greyscale
-        grey=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        warp=a.crop_and_warp(grey)
+        #grey=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        warp=a.crop_and_warp(frame)
+        fgmask=fgbg.apply(warp)
+        slugviz=warp.copy()
         cv2.imshow('warp',warp)
-        if fbuffer==0:
-            fbuffer=1
-        alpha=float(1.0/fbuffer)
-        img_blur = cv2.GaussianBlur(warp, (5, 5), -1)
+        #if fbuffer==0:
+            #fbuffer=1
+        #alpha=float(1.0/fbuffer)
+# these lines are to do with a greyscale moving average bg
+        #img_blur = cv2.GaussianBlur(warp, (5, 5), -1)
     # build the background model from the blurred input image
-        cv2.accumulateWeighted(img_blur,movingaverage,alpha)
+        #cv2.accumulateWeighted(img_blur,movingaverage,alpha)
     # convert to absolute values and uint8
-        res=cv2.convertScaleAbs(movingaverage)
+        #res=cv2.convertScaleAbs(movingaverage)
     # take the absolute difference of the background and the input
-        difference_img = cv2.absdiff(res, img_blur)
+        #difference_img = cv2.absdiff(res, img_blur)
     # threshold it to get a motion mask
-        ret,th1 = cv2.threshold(difference_img,difference_thresh,255,cv2.THRESH_BINARY)
-        if (startframe-n==fbuffer): 
-            fn="out/startdisks{}.png".format(p)
-            cv2.imwrite(fn,movingaverage)
+        #ret,fgmask = cv2.threshold(difference_img,difference_thresh,255,cv2.THRESH_BINARY)
+        #if (startframe-n==fbuffer): 
+        #    fn="out/startdisks{}.png".format(p)
+        #    cv2.imwrite(fn,movingaverage)
 # if we've had enough frames of background then our motion estimate is probably stable...
-        if (n>fbuffer):
+        #if (n>fbuffer):
         
-            # create a 5x5 elipptical structuring element
-            element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+        # create a 5x5 eliptical structuring element
+        element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
             #remove tiny foreground blobs
-            er=cv2.erode(th1,element,iterations=1); 
+        er=cv2.erode(fgmask,element,iterations=1); 
             # work out connected components (4-connected)
-            connectivity = 4  
-            ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
+        connectivity = 4  
+        ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
        
-            num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
+        num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
             
-            out=cv2.merge([er,er,th1])
-            slugviz=cv2.merge([warp,warp,warp])
-            thisslug.highlight(slugviz);
-            cv2.imshow('foregound',out)
-            cv2.imshow('slug',slugviz)
+        out=cv2.merge([er,er,fgmask])
+        thisslug.highlight(slugviz);
+        cv2.imshow('foregound',out)
+        cv2.imshow('slug',slugviz)
        #uncommment the next few lines if you want to save any foreground img
        #it needs an output directory called "out"
        #fn="out/foreground"+str(n).rjust(4,'0')+".png"
        #cv2.imwrite(fn,out);
         
-       #fn="out/slugviz"+str(n).rjust(4,'0')+".png"
-       #cv2.imwrite(fn,slugviz);
+        fn="out/slugviz"+str(n).rjust(4,'0')+".png"
+        cv2.imwrite(fn,slugviz);
         fn="out/warp{}.png".format(n,"03")
         cv2.imwrite(fn,warp) 
         warplist.append(fn)
@@ -145,12 +152,11 @@ for fname in flist:
     ch = cv2.waitKey(5)
     if ch == 27:
         break
-output=cv2.merge([movingaverage,movingaverage,movingaverage])
-thisslug.visualise_trails(output,warplist)
-fn="out/andthatsallfolks.png"
-cv2.imwrite(fn,overrim)
+output=fgbg.getBackgroundImage()
 fn="out/enddisks.png"
-cv2.imwrite(fn,movingaverage)
+cv2.imwrite(fn,output)
+thisslug.visualise_trails(output,warplist)
+thisslug.list_pauses()
 cv2.destroyAllWindows()
 
 
