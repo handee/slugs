@@ -8,8 +8,8 @@ import math
 import numpy as np
 from slug import Slug
 from arena import Arena
-current_config_file='short_test_seq.cfg'
-#current_config_file='slug2.cfg'
+#current_config_file='short_test_seq.cfg'
+current_config_file='slug2.cfg'
 
 
 setup_section='s0'
@@ -29,7 +29,6 @@ flist.sort()
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
 cv2.namedWindow('slug')
-cv2.namedWindow('warp')
 
 camerashakes=config.sections() # camera shake baby
 camerashakes.remove('s0') #get rid of setup
@@ -72,42 +71,22 @@ for fname in flist:
     else:
 #read a frame from the video capture obj 
         frame=cv2.imread(fname)
-    # make that greyscale
-        #grey=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         warp=a.crop_and_warp(frame)
+        # get the foreground (moving object) mask from our background model 
         fgmask=fgbg.apply(warp)
-        slugviz=warp.copy()
-        cv2.imshow('warp',warp)
-        #if fbuffer==0:
-            #fbuffer=1
-        #alpha=float(1.0/fbuffer)
-# these lines are to do with a greyscale moving average bg
-        #img_blur = cv2.GaussianBlur(warp, (5, 5), -1)
-    # build the background model from the blurred input image
-        #cv2.accumulateWeighted(img_blur,movingaverage,alpha)
-    # convert to absolute values and uint8
-        #res=cv2.convertScaleAbs(movingaverage)
-    # take the absolute difference of the background and the input
-        #difference_img = cv2.absdiff(res, img_blur)
-    # threshold it to get a motion mask
-        #ret,fgmask = cv2.threshold(difference_img,difference_thresh,255,cv2.THRESH_BINARY)
-        #if (startframe-n==fbuffer): 
-        #    fn="out/startdisks{}.png".format(p)
-        #    cv2.imwrite(fn,movingaverage)
-# if we've had enough frames of background then our motion estimate is probably stable...
-        #if (n>fbuffer):
-        
         # create a 5x5 eliptical structuring element
         element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-            #remove tiny foreground blobs
+        #remove tiny foreground blobs
         er=cv2.erode(fgmask,element,iterations=1); 
-            # work out connected components (4-connected)
+        # work out connected components (4-connected)
         connectivity = 4  
         ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
-       
+        # update the slug's location 
         num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
-            
+        
+        # visualise what's going on    
         out=cv2.merge([er,er,fgmask])
+        slugviz=warp.copy()
         thisslug.highlight(slugviz);
         cv2.imshow('foregound',out)
         cv2.imshow('slug',slugviz)
@@ -118,7 +97,7 @@ for fname in flist:
         
         fn="out/slugviz"+str(n).rjust(4,'0')+".png"
         cv2.imwrite(fn,slugviz);
-        fn="out/warp{}.png".format(n,"03")
+        fn="out/warp"+str(n).rjust(4,'0')+".png"
         cv2.imwrite(fn,warp) 
         warplist.append(fn)
     #let's deal with that pesky zero case before we divide by fbuffer
@@ -155,8 +134,10 @@ for fname in flist:
 output=fgbg.getBackgroundImage()
 fn="out/enddisks.png"
 cv2.imwrite(fn,output)
-thisslug.visualise_trails(output,warplist)
+thisslug.find_pauses()
 thisslug.list_pauses()
+thisslug.visualise_pauses(warplist)
+#thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
 
 

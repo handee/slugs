@@ -1,4 +1,3 @@
-
 import glob
 import cv2
 import common
@@ -7,13 +6,18 @@ import math
 import numpy as np
 
 class Slug:
+    kalman = cv2.KalmanFilter(4,2)
+    kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
+    kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
+    kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
 
     lastslugx=0
     lastslugy=0
     slugx=0
     slugy=0
     currentslugtrail=[]
-    slugtrails=[]
+    kalmanslugtrail=[]
+    kslug=[]
     slugstills=[]
     slugmindist=20
     still=False
@@ -25,13 +29,12 @@ class Slug:
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if len(centroids)<1:
            if s.still==False:
-              print "Adding a slugtrail to our trails"
                # the slug has just stopped
-              s.slugtrails.append(list(s.currentslugtrail))
-              del s.currentslugtrail[:]
-              s.slugstills.append([n,s.lastslugx,s.lastslugy,n])
               s.still=True
+           s.currentslugtrail.append([n,s.lastslugx,s.lastslugy,s.still])
         if (len(centroids)>=1):
+           if (s.still==True):
+              s.still=False
            if (len(centroids)==1):
               closest=0
            else:
@@ -43,17 +46,17 @@ class Slug:
                      mindist=dslug
                      closest=i
 
-               if (s.still):# we've just started moving
-                  s.slugstills[-1][3]=n 
-
-               s.slugx=centroids[closest][0]
-               s.slugy=centroids[closest][1]
-               s.currentslugtrail.append([n,s.slugx,s.slugy])
-               s.lastslugx=s.slugx
-               s.lastslugy=s.slugy
-               s.still=False
+           s.slugx=centroids[closest][0]
+           s.slugy=centroids[closest][1]
+           s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
+           s.lastslugx=s.slugx
+           s.lastslugy=s.slugy
 
         # by the time we get to this stage, num_blobs should be 1!
+        slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
+        s.kalman.correct(slugloc)
+        s.kslug=s.kalman.predict()
+        s.kalmanslugtrail.append((int(s.kslug[0]),int(s.kslug[1])));
         return(num_blobs, centroids, stats)
 
 ###
@@ -80,35 +83,26 @@ class Slug:
         return(num_blobs, newcentroids, newstats)
     
 
-    # takes a box and looks back through history till it finds
+    # takes a box and a frame and looks back through history till it finds
     # the time and place that the slug was most recently not 
     # in that box. 
     # box is defined top-left-bottom-right
-    # returns [t,x,y]; returns [0,0,0] if slug was never in box
-    def backtrack_out_of_box(s,box):
-       ret_val=[0,0,0]
+    # returns [t,x,y,m]; returns [0,0,0,0] if slug was never in box
+    def backtrack_out_of_box(s,box,frame):
+       ret_val=[0,0,0,0]
        inbox=True
-       i=len(currentslugtrail) #if we have a current slug trail
-       if (i>0):
-           cs=currentslugtrail #current slug is that one
-           ns=0 #nextslug
-       else:
-           cs=slugtrails[0] #otherwise cs is the most recent stored slugtrail
-           ns=1
        while inbox:
-          while i>0:
-             if (point_in_box(box, cs[i][1],cs[i][2])):
-                 ret_val=cs[i]
-                 inbox=False
-                 break
-             i-=1
-          cs=slugtrails[ns] #try the next slugtrail in the list
-          i=len(cs) 
-          ns+=1# update the next trail pointer
+           if (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
+               frame-=1
+           elif (frame<0):
+               inbox=False
+           else:
+               ret_val=s.currentslugtrail[frame]
+               inbox=False
        return ret_val
  
     # is a point in a box? True is yes, False is no
-    def point_in_box(box,x,y):
+    def point_in_box(s,box,x,y):
        if ((x>box[0]) and (x<box[2]) and (y>box[1]) and (y<box[3])):
           return(True)
        else:
@@ -124,30 +118,107 @@ class Slug:
         else:
            cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(255,0,0),2)
            cv2.circle(img,(int(s.slugx),int(s.slugy)),2,(0,255,0),-1)
+        cv2.circle(img,(int(s.kslug[0]),int(s.kslug[1])),2,(255,0,0),1)
         return img
+ 
+# draws a box around a point 
+    def highlightbox(s,x,y,img):
+        w, h = img.shape[:2]
+        pad_w=10
+        pad_h=10
+        tlx=int(x-pad_w)
+        tly=int(y-pad_h)
+        brx=int(x+pad_w)
+        bry=int(y+pad_h)
+        if (tlx<0):
+            tlx=0
+        if (tly<0):
+            tly=0
+        if (brx>w):
+            brx=w
+        if (bry>h):
+            bry=h
+        cv2.rectangle(img, (tlx,tly), (brx,bry),(255,0,0),2)
+        return img
+
 
 # prints out all the times the slug was still
     def list_pauses(s):
         for pause in s.slugstills:
-            print "Slug was still for {} frames starting {} at {},{}".format(pause[3]-pause[0],pause[0],pause[1],pause[2])
+            print "Slug was still for {} frames starting {} at {},{}".format(pause[3],pause[0],pause[1],pause[2])
+
+    def find_pauses(s):
+        moving=False #slug starts off still
+        p=[0,0,0,0]
+        for frame in s.currentslugtrail:
+            print frame
+            if (moving==True and frame[3]==False):
+               print "it's just stopped"
+               p[0]=frame[0]
+               p[1]=frame[1]
+               p[2]=frame[2]
+               p[3]=0
+            elif (moving==False and frame[3]==False):
+               print "it's still"
+               #pause[0]=frame[0]
+               #it's been stopped for a bit, increment the counter
+               p[3]+=1
+            elif (moving==False and frame[3]==True):
+               print "it's startedupagain"
+               #it's started moving again, store the pause info
+               s.slugstills.append(p)
+               p=[0,0,0,0]
+            moving=frame[3]
+        if (moving==False):
+           #we finished still so store it
+           s.slugstills.append(p)
+    
+            
+ 
+# visualises all the times the slug was still
+    def visualise_pauses(s,ims):
+        w=15
+        h=15
+        for pause in s.slugstills:
+            plx=pause[1]-w
+            prx=pause[1]+w
+            pty=pause[2]-h
+            pby=pause[2]+h
+            currim=cv2.imread(ims[pause[3]])
+            if (plx<0): plx=0
+            if (pty<0): pty=0
+            if (prx>currim.shape[1]): prx=currim.shape[1]
+            if (pby>currim.shape[0]): pby=currim.shape[0]
+            s.highlightbox(pause[1],pause[2],currim)
+            loc=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
+            start=loc[0]
+            startim=cv2.imread(ims[start])
+            s.highlightbox(pause[1],pause[2],startim)
+ #
+            fn="out/stillb4{}.png".format(pause[0],'03')
+            cv2.imwrite(fn,startim)
+            fn="out/stillstart{}.png".format(pause[0],'03')
+            cv2.imwrite(fn,currim)
+            print "Slug was still for {} frames starting {} at {},{}".format(pause[3],pause[0],pause[1],pause[2])
+#
 
 # takes the slug trails as a set and draws the pics    
-    def visualise_trails(s,movingav,filelist):    
-        print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
-        overim=movingav.copy()
-        for currenttrail in s.slugtrails:
-           if (len(currenttrail)>3):
-               currim=cv2.imread(filelist[currenttrail[0][0]])
-               for point in currenttrail:
-                   cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
-                   cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
-               cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
-               cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-               cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
-               cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-               fn="out/trail{}.png".format(currenttrail[0][0],'03')
-               cv2.imwrite(fn,currim)
-        fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
-        cv2.imwrite(fn,overim)
+    #def visualise_trails(s,movingav,filelist):    
+        #print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
+        #overim=movingav.copy()
+        #for currenttrail in s.slugtrails:
+           #if (len(currenttrail)>3):
+               #currim=cv2.imread(filelist[currenttrail[0][0]])
+               #for point in currenttrail:
+                   #cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+                   #cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+               #cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
+               #cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
+               #cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
+               #cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
+               #fn="out/trail{}.png".format(currenttrail[0][0],'03')
+               #cv2.imwrite(fn,currim)
+        #fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
+        #cv2.imwrite(fn,overim)
  
          
