@@ -33,14 +33,20 @@ class Arena:
 
     def transform_point(s, x, y):
     # takes a point and puts it into arena coordinates
-        pt=np.array([[x,y]])
-        (nx,ny)=cv2.perspectiveTransform(pt, s.tm)
+        pt=np.array([[x,y]], dtype=np.float32)
+        pt=np.array([pt])
+        a=cv2.perspectiveTransform(pt, s.tm)
+        nx=a[0,0,0]
+        ny=a[0,0,1]
         return(nx,ny) 
 
     def transform_point_to_image(s, x, y):
     # takes a point in arena coordinates and returns it to image coordinates
-        pt=np.array([[x,y]])
-        (nx,ny)=cv2.perspectiveTransform(pt, s.tmi)
+        pt=np.array([[x,y]], dtype=np.float32)
+        pt=np.array([pt])
+        a=cv2.perspectiveTransform(pt, s.tmi)
+        nx=a[0,0,0]
+        ny=a[0,0,1]
         return(nx,ny) 
 
     def update_location(s,corners):
