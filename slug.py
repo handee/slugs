@@ -15,10 +15,13 @@ class Slug:
     lastslugy=0
     slugx=0
     slugy=0
+    kslugx=0
+    kslugy=0
     currentslugtrail=[]
     kalmanslugtrail=[]
     kslug=[]
     slugstills=[]
+    slugtrails=[]
     slugmindist=20
     still=False
     ar=[]
@@ -56,7 +59,9 @@ class Slug:
         slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
         s.kalman.correct(slugloc)
         s.kslug=s.kalman.predict()
-        s.kalmanslugtrail.append((int(s.kslug[0]),int(s.kslug[1])));
+        s.kslugx=int(s.kslug[0])
+        s.kslugy=int(s.kslug[1])
+        s.kalmanslugtrail.append((s.kslugx,s.kslugy));
         return(num_blobs, centroids, stats)
 
 ###
@@ -81,7 +86,10 @@ class Slug:
                     newstats.append(stats[i])            
         num_blobs=len(newcentroids) 
         return(num_blobs, newcentroids, newstats)
-    
+
+
+    def return_locations(s):
+        return ([s.slugx,s.slugy,s.kslugx,s.kslugy])    
 
     # takes a box and a frame and looks back through history till it finds
     # the time and place that the slug was most recently not 
@@ -118,7 +126,7 @@ class Slug:
         else:
            cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(255,0,0),2)
            cv2.circle(img,(int(s.slugx),int(s.slugy)),2,(0,255,0),-1)
-        cv2.circle(img,(int(s.kslug[0]),int(s.kslug[1])),2,(255,0,0),1)
+        cv2.circle(img,(int(s.kslugx),int(s.kslugy)),2,(255,0,0),1)
         return img
  
 
@@ -129,30 +137,39 @@ class Slug:
             print "Slug was still for {} frames starting {} at {},{}".format(pause[3],pause[0],pause[1],pause[2])
 
     def find_pauses(s):
-        moving=False #slug starts off still
+        still = True #slug starts off still
         p=[0,0,0,0]
+        st=[]
         for frame in s.currentslugtrail:
             print frame
-            if (moving==True and frame[3]==False):
+            if (still==False and frame[3]==True):
                print "it's just stopped"
                p[0]=frame[0]
                p[1]=frame[1]
                p[2]=frame[2]
                p[3]=0
-            elif (moving==False and frame[3]==False):
+               s.slugtrails.append(st)
+               st=[]
+            elif (still==True and frame[3]==True):
                print "it's still"
                #pause[0]=frame[0]
                #it's been stopped for a bit, increment the counter
                p[3]+=1
-            elif (moving==False and frame[3]==True):
+            elif (still == True and frame[3]==False ):
                print "it's startedupagain"
                #it's started moving again, store the pause info
                s.slugstills.append(p)
                p=[0,0,0,0]
-            moving=frame[3]
-        if (moving==False):
+               st.append([frame[0],frame[1],frame[2]])
+            else:
+               st.append([frame[0],frame[1],frame[2]])
+               #we're moving, append to the current slug trail
+            still=frame[3]
+        if (still==True):
            #we finished still so store it
            s.slugstills.append(p)
+        else:
+           s.slugtrails.append(st)
     
             
  
@@ -183,22 +200,23 @@ class Slug:
 #
 
 # takes the slug trails as a set and draws the pics    
-    #def visualise_trails(s,movingav,filelist):    
-        #print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
-        #overim=movingav.copy()
-        #for currenttrail in s.slugtrails:
-           #if (len(currenttrail)>3):
-               #currim=cv2.imread(filelist[currenttrail[0][0]])
-               #for point in currenttrail:
-                   #cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
-                   #cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
-               #cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
-               #cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-               #cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
-               #cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-               #fn="out/trail{}.png".format(currenttrail[0][0],'03')
-               #cv2.imwrite(fn,currim)
-        #fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
-        #cv2.imwrite(fn,overim)
+    def visualise_trails(s,movingav,filelist):    
+        print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
+        overim=movingav.copy()
+        for currenttrail in s.slugtrails:
+           if (len(currenttrail)>3):
+               currim=cv2.imread(filelist[currenttrail[0][0]])
+               for point in currenttrail:
+                   print point
+                   cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+                   cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
+               cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
+               cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
+               cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
+               cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
+               fn="out/trail{}.png".format(currenttrail[0][0],'03')
+               cv2.imwrite(fn,currim)
+        fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
+        cv2.imwrite(fn,overim)
  
          
