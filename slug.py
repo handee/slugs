@@ -121,25 +121,6 @@ class Slug:
         cv2.circle(img,(int(s.kslug[0]),int(s.kslug[1])),2,(255,0,0),1)
         return img
  
-# draws a box around a point 
-    def highlightbox(s,x,y,img):
-        w, h = img.shape[:2]
-        pad_w=10
-        pad_h=10
-        tlx=int(x-pad_w)
-        tly=int(y-pad_h)
-        brx=int(x+pad_w)
-        bry=int(y+pad_h)
-        if (tlx<0):
-            tlx=0
-        if (tly<0):
-            tly=0
-        if (brx>w):
-            brx=w
-        if (bry>h):
-            bry=h
-        cv2.rectangle(img, (tlx,tly), (brx,bry),(255,0,0),2)
-        return img
 
 
 # prints out all the times the slug was still
@@ -180,21 +161,20 @@ class Slug:
         w=15
         h=15
         for pause in s.slugstills:
-            plx=pause[1]-w
-            prx=pause[1]+w
-            pty=pause[2]-h
-            pby=pause[2]+h
+            plx=int (pause[1]-w)
+            prx=int (pause[1]+w)
+            pty=int (pause[2]-h)
+            pby=int (pause[2]+h)
             currim=cv2.imread(ims[pause[3]])
             if (plx<0): plx=0
             if (pty<0): pty=0
             if (prx>currim.shape[1]): prx=currim.shape[1]
             if (pby>currim.shape[0]): pby=currim.shape[0]
-            s.highlightbox(pause[1],pause[2],currim)
+            cv2.rectangle(currim, (plx,pty), (prx,pby),(255,0,0),2)
             loc=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
             start=loc[0]
             startim=cv2.imread(ims[start])
-            s.highlightbox(pause[1],pause[2],startim)
- #
+            cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
             fn="out/stillb4{}.png".format(pause[0],'03')
             cv2.imwrite(fn,startim)
             fn="out/stillstart{}.png".format(pause[0],'03')

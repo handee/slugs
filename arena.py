@@ -5,6 +5,12 @@ import math
 import numpy as np
 
 
+# Arena class - holds information about the size of the arena
+# and handles transformations from image coordinates to arena 
+# coordinates.
+# Can also backproject from arena coordinates to image coordinates.
+# Uses simple perspective transform
+
 class Arena:
     width=580
     height=420

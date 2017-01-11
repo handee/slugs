@@ -6,6 +6,7 @@ import common
 import video
 import math
 import time
+import sys
 import numpy as np
 
 
@@ -24,11 +25,27 @@ def add_position(cfile, number, startframe):
 
 start_time=time.time()
 
+# create a cfg file with the following kind of content (without the #):
+#[s0]
+#image_folder=/home/hmd1/data/lizzie/2016-10-19/
+#frames_of_background=15 
+#difference_threshold=30 
+ 
+#call program with 
+#python pre_process.py config-file-name
+
+# it will create a new config file with information on frames where 
+# there's camera shake
+
+
+infilename=sys.argv[-1]
+
+
 #read in the start config file, and copy across defaults to our new config
 config = ConfigParser.ConfigParser()
 config.add_section('s0') 
 stconfig = ConfigParser.ConfigParser()
-stconfig.read('startconfig2.cfg')
+stconfig.read(infilename)
 inputdir= stconfig.get('s0','image_folder')
 config.set('s0','image_folder',inputdir)
 print inputdir
@@ -97,4 +114,4 @@ with open('test.cfg', 'w') as configfile:
 print "You're going to need to look at the following pictures and get arena position"
 for pic in shakepics:
    print pic
-
+print "A template has been saved as test.cfg - edit this and rename it"

@@ -5,12 +5,13 @@ import cv2
 import common
 import video
 import math
+import sys 
 import numpy as np
 from slug import Slug
 from arena import Arena
 #current_config_file='short_test_seq.cfg'
-current_config_file='slug2.cfg'
-
+#current_config_file='config.cfg'
+current_config_file=sys.argv[-1]
 
 setup_section='s0'
 
