@@ -6,22 +6,30 @@ import common
 import video
 import math
 import sys 
+import csv
 import numpy as np
 from slug import Slug
 from arena import Arena
 #current_config_file='short_test_seq.cfg'
 #current_config_file='config.cfg'
+
 current_config_file=sys.argv[-1]
-
 setup_section='s0'
-
-
 config = ConfigParser.ConfigParser()
 config.read(current_config_file)
 inputdir= config.get(setup_section,'image_folder')
 print inputdir
 fbuffer=config.getint(setup_section,'frames_of_background') 
 difference_thresh=config.getint(setup_section,'difference_threshold') 
+
+#for output filename we want to use the directory; for reading in we need a
+#slash on the end, let's tidy this up a bit
+if (inputdir.endswith('/')):
+   outputcsvfile=inputdir[:-1]+".csv"
+else:
+   outputcsvfile=inputdir+".csv"
+   inputdir+='/'
+
 
 # read directory, get list of files, sort
 flist=glob.glob(inputdir+"*.jpg")
@@ -30,6 +38,7 @@ flist.sort()
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
 cv2.namedWindow('slug')
+cv2.namedWindow('unrectified')
 
 camerashakes=config.sections() # camera shake baby
 camerashakes.remove('s0') #get rid of setup
@@ -84,6 +93,18 @@ for fname in flist:
         ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
         # update the slug's location 
         num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
+
+        # get the locations from the slug class for output and visualisation 
+        locs=thisslug.return_locations()
+        # reproject back into image coordinates
+        imx,imy=a.transform_point_to_image(locs[0],locs[1])
+        kimx,kimy=a.transform_point_to_image(locs[2],locs[3])
+
+        #output what we've got to a csvwriter
+        # filename, slugx in image coords, slugy in image coords, filtered image x, filtered image y, x in arena coords, y in arena coords, filtered arena x, filtered arena y.
+        with open(outputcsvfile, 'a+') as f:
+           csvwrite=csv.writer(f)
+           csvwrite.writerow([fname,imx,imy,kimx,kimy,locs[0],locs[1],locs[2],locs[3]])
         
         # visualise what's going on    
         out=cv2.merge([er,er,fgmask])
@@ -100,8 +121,11 @@ for fname in flist:
         cv2.imwrite(fn,slugviz);
         fn="out/warp"+str(n).rjust(4,'0')+".png"
         cv2.imwrite(fn,warp) 
+
+        cv2.circle(frame,(int(imx),int(imy)),2,(0,255,0),1)
+        cv2.circle(frame,(int(kimx),int(kimy)),2,(255,0,0),1)
+        cv2.imshow('unrectified',frame)
         warplist.append(fn)
-    #let's deal with that pesky zero case before we divide by fbuffer
             
         n+=1
     if (n>=endframe):
@@ -138,7 +162,7 @@ cv2.imwrite(fn,output)
 thisslug.find_pauses()
 thisslug.list_pauses()
 thisslug.visualise_pauses(warplist)
-#thisslug.visualise_trails(output,warplist)
+thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
 
 
