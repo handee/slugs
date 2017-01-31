@@ -22,6 +22,8 @@ def add_position(cfile, number, startframe):
    cfile.set(sectionstring,"bottom_left_y",0)
    cfile.set(sectionstring,"bottom_right_x",0)
    cfile.set(sectionstring,"bottom_right_y",0)
+   cfile.set(sectionstring,"initial_slugx",0)
+   cfile.set(sectionstring,"initial_slugy",0)
 
 start_time=time.time()
 
