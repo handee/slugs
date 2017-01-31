@@ -10,34 +10,40 @@ class Slug:
     kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
     kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
     kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
-
+   
     lastslugx=0
     lastslugy=0
     slugx=0
     slugy=0
     kslugx=0
     kslugy=0
+    ikx=0
+    iky=0
+    ix=0
+    iy=0
     currentslugtrail=[]
     kalmanslugtrail=[]
+    icurrentslugtrail=[] #image coords not arena coords
+    ikalmanslugtrail=[] # image coords not arena coords
     kslug=[]
     slugstills=[]
     slugtrails=[]
     slugmindist=20
     still=False
     ar=[]
+    smoothing_window=5
     def __init__(s,a):
         s.ar=a
 
     def update_location(s, o, n):
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if len(centroids)<1:
-           if s.still==False:
+           if s.still==0:
                # the slug has just stopped
-              s.still=True
-           s.currentslugtrail.append([n,s.lastslugx,s.lastslugy,s.still])
+              s.still=1
         if (len(centroids)>=1):
-           if (s.still==True):
-              s.still=False
+           if (s.still==1):
+              s.still=0
            if (len(centroids)==1):
               closest=0
            else:
@@ -51,17 +57,21 @@ class Slug:
 
            s.slugx=centroids[closest][0]
            s.slugy=centroids[closest][1]
-           s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
            s.lastslugx=s.slugx
            s.lastslugy=s.slugy
 
+        s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
         # by the time we get to this stage, num_blobs should be 1!
         slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
         s.kalman.correct(slugloc)
         s.kslug=s.kalman.predict()
         s.kslugx=int(s.kslug[0])
         s.kslugy=int(s.kslug[1])
-        s.kalmanslugtrail.append((s.kslugx,s.kslugy));
+        s.ix,s.iy=s.ar.transform_point_to_image(s.slugx,s.slugy)
+        s.ikx,s.iky=s.ar.transform_point_to_image(s.kslugx,s.kslugy)
+        s.icurrentslugtrail.append((s.ix,s.iy))
+        s.ikalmanslugtrail.append((s.ikx,s.iky))
+        s.kalmanslugtrail.append((s.kslugx,s.kslugy))
         return(num_blobs, centroids, stats)
 
 ###
@@ -89,7 +99,7 @@ class Slug:
 
 
     def return_locations(s):
-        return ([s.slugx,s.slugy,s.kslugx,s.kslugy])    
+        return ([s.slugx,s.slugy,s.kslugx,s.kslugy,s.ix,s.iy,s.ikx,s.iky])    
 
     # takes a box and a frame and looks back through history till it finds
     # the time and place that the slug was most recently not 
@@ -120,13 +130,21 @@ class Slug:
  
 # draws a dot on the slug 
     def highlight(s,img):
+        cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(255,0,0),2)
         if (s.still):
-           cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(255,0,0),2)
            cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(0,0,255),-1)
         else:
-           cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(255,0,0),2)
            cv2.circle(img,(int(s.slugx),int(s.slugy)),2,(0,255,0),-1)
         cv2.circle(img,(int(s.kslugx),int(s.kslugy)),2,(255,0,0),1)
+        return img
+ 
+    def highlight_im(s,img):
+        cv2.circle(img,(int(s.ix),int(s.iy)),2,(255,0,0),2)
+        if (s.still):
+           cv2.circle(img,(int(s.ix),int(s.iy)),2,(0,0,255),-1)
+        else:
+           cv2.circle(img,(int(s.ix),int(s.iy)),2,(0,255,0),-1)
+        cv2.circle(img,(int(s.ikx),int(s.iky)),2,(255,0,0),1)
         return img
  
 
@@ -137,41 +155,63 @@ class Slug:
             print "Slug was still for {} frames starting {} at {},{}".format(pause[3],pause[0],pause[1],pause[2])
 
     def find_pauses(s):
-        still = True #slug starts off still
+        still = 1 #slug starts off still
         p=[0,0,0,0]
+        
         st=[]
         for frame in s.currentslugtrail:
-            print frame
-            if (still==False and frame[3]==True):
+            n=0
+            print "n= {}, frame = {}, len kst = {} kst = {}".format(n,frame,len(s.kalmanslugtrail),s.kalmanslugtrail[n])
+            if (still==0 and frame[3]==1):
                print "it's just stopped"
-               p[0]=frame[0]
-               p[1]=frame[1]
-               p[2]=frame[2]
+               p[0]=n
+               p[1]=s.kalmanslugtrail[n][0]
+               p[2]=s.kalmanslugtrail[n][1]
                p[3]=0
                s.slugtrails.append(st)
                st=[]
-            elif (still==True and frame[3]==True):
+            elif (still==1 and frame[3]==1):
                print "it's still"
                #pause[0]=frame[0]
                #it's been stopped for a bit, increment the counter
                p[3]+=1
-            elif (still == True and frame[3]==False ):
+            elif (still == 1 and frame[3]==0):
                print "it's startedupagain"
                #it's started moving again, store the pause info
                s.slugstills.append(p)
                p=[0,0,0,0]
-               st.append([frame[0],frame[1],frame[2]])
+               #also we're moving, append to the current slug trail
+               st.append([frame[0],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1]])
             else:
-               st.append([frame[0],frame[1],frame[2]])
                #we're moving, append to the current slug trail
+               st.append([frame[0],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1]])
             still=frame[3]
-        if (still==True):
+        if (still==1):
            #we finished still so store it
            s.slugstills.append(p)
         else:
            s.slugtrails.append(st)
+        n=n+1
     
             
+    def smooth_still_estimate(s):
+        l=floor(smoothing_window/2)
+        t=len(s.currentslugtrail)
+        tempstill=[]
+        for i in range(0,l):
+           tempstill.append(s.currentslugtrail[i][3])
+        for i in range(0+l,t-l):
+           current=0
+           for j in range(i-l,i+l):
+               current+=(s.currentslugtrail[j][3])
+           if (current>l):
+               tempstill.append(1)
+           else:
+               tempstill.append(0)
+        for i in range(0,t):
+           print " {} original, {} smoothed".format(s.currentslugtrail[i][3],tempstill[i])
+           s.currentslugtrail[i][3]=tempstill[i]
+
  
 # visualises all the times the slug was still
     def visualise_pauses(s,ims):
@@ -196,7 +236,6 @@ class Slug:
             cv2.imwrite(fn,startim)
             fn="out/stillstart{}.png".format(pause[0],'03')
             cv2.imwrite(fn,currim)
-            print "Slug was still for {} frames starting {} at {},{}".format(pause[3],pause[0],pause[1],pause[2])
 #
 
 # takes the slug trails as a set and draws the pics    
@@ -219,4 +258,7 @@ class Slug:
         fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
         cv2.imwrite(fn,overim)
  
-         
+        
+    def getrow(s,n): 
+       return(s.icurrentslugtrail[n][0],s.icurrentslugtrail[n][1],s.ikalmanslugtrail[n][0],s.ikalmanslugtrail[n][1],s.currentslugtrail[n][1],s.currentslugtrail[n][2],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1])
+
