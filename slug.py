@@ -21,17 +21,18 @@ class Slug:
     iky=0
     ix=0
     iy=0
-    currentslugtrail=[]
-    kalmanslugtrail=[]
+    currentslugtrail=[] # complete slug trail
+    kalmanslugtrail=[] # complete kalman slug trail
     icurrentslugtrail=[] #image coords not arena coords
     ikalmanslugtrail=[] # image coords not arena coords
     kslug=[]
-    slugstills=[]
-    slugtrails=[]
+    slugstills=[]  # array of still locations, segmented
+    slugtrails=[]  # array of trails, segmented
     slugmindist=20
-    still=False
-    ar=[]
-    smoothing_window=5
+    still=1 #is the slug still? (starts off still)
+    ar=[] # arena
+    smoothing_window=5 # for smoothing the stillness or otherwise; 
+                       #it's an average
     def __init__(s,a,x,y):
         print "initialising at {},{}".format(x,y)
         s.ar=a
@@ -43,14 +44,18 @@ class Slug:
     def update_location(s, o, n):
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if len(centroids)<1:
-           print "no movement in {} ".format(n)
+           print "no movement detected in frame {} ".format(n)
            s.slugx=s.lastslugx
            s.slugy=s.lastslugy
            if s.still==0:
                # the slug has just stopped
               s.still=1
+
+        # take detected centroids, and trim; hopefully we end up
+        # with just one detected motion patch but if we find more
+        # find the closest to the last known slug position 
         if (len(centroids)>=1):
-           print "movement in {} ".format(n)
+           print "movement detected in frame {} ".format(n)
            if (s.still==1):
               s.still=0
            if (len(centroids)==1):
@@ -68,20 +73,23 @@ class Slug:
            s.slugy=centroids[closest][1]
            s.lastslugx=s.slugx
            s.lastslugy=s.slugy
-
-        print "slug at {},{}".format(s.slugx,s.slugy)
+        # now s.slugx and s.slugy contain the slug's location
         s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
-        # by the time we get to this stage, num_blobs should be 1!
+         
+        #apply Kalman filter; not actually used but saved just in case it
+        #turns out to be useful in the future
         slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
         s.kalman.correct(slugloc)
         s.kslug=s.kalman.predict()
         s.kslugx=int(s.kslug[0])
         s.kslugy=int(s.kslug[1])
+        s.kalmanslugtrail.append((s.kslugx,s.kslugy))
+      
+        # transform back into image coords and save those as well
         s.ix,s.iy=s.ar.transform_point_to_image(s.slugx,s.slugy)
         s.ikx,s.iky=s.ar.transform_point_to_image(s.kslugx,s.kslugy)
         s.icurrentslugtrail.append((s.ix,s.iy))
         s.ikalmanslugtrail.append((s.ikx,s.iky))
-        s.kalmanslugtrail.append((s.kslugx,s.kslugy))
         return(num_blobs, centroids, stats)
 
 ###
