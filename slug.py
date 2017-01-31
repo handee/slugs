@@ -32,16 +32,25 @@ class Slug:
     still=False
     ar=[]
     smoothing_window=5
-    def __init__(s,a):
+    def __init__(s,a,x,y):
+        print "initialising at {},{}".format(x,y)
         s.ar=a
+        s.lastslugx=x
+        s.lastslugy=y
+        s.slugx=x
+        s.slugy=y
 
     def update_location(s, o, n):
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if len(centroids)<1:
+           print "no movement in {} ".format(n)
+           s.slugx=s.lastslugx
+           s.slugy=s.lastslugy
            if s.still==0:
                # the slug has just stopped
               s.still=1
         if (len(centroids)>=1):
+           print "movement in {} ".format(n)
            if (s.still==1):
               s.still=0
            if (len(centroids)==1):
@@ -60,6 +69,7 @@ class Slug:
            s.lastslugx=s.slugx
            s.lastslugy=s.slugy
 
+        print "slug at {},{}".format(s.slugx,s.slugy)
         s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
         # by the time we get to this stage, num_blobs should be 1!
         slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
@@ -157,7 +167,7 @@ class Slug:
     def find_pauses(s):
         still = 1 #slug starts off still
         p=[0,0,0,0]
-        
+        s.smooth_still_estimate()
         st=[]
         for frame in s.currentslugtrail:
             n=0
@@ -165,8 +175,8 @@ class Slug:
             if (still==0 and frame[3]==1):
                print "it's just stopped"
                p[0]=n
-               p[1]=s.kalmanslugtrail[n][0]
-               p[2]=s.kalmanslugtrail[n][1]
+               p[1]=frame[1]
+               p[2]=frame[2]
                p[3]=0
                s.slugtrails.append(st)
                st=[]
@@ -181,10 +191,10 @@ class Slug:
                s.slugstills.append(p)
                p=[0,0,0,0]
                #also we're moving, append to the current slug trail
-               st.append([frame[0],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1]])
+               st.append([frame[0],frame[1],frame[2]])
             else:
                #we're moving, append to the current slug trail
-               st.append([frame[0],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1]])
+               st.append([frame[0],frame[1],frame[2]])
             still=frame[3]
         if (still==1):
            #we finished still so store it
@@ -195,7 +205,7 @@ class Slug:
     
             
     def smooth_still_estimate(s):
-        l=floor(smoothing_window/2)
+        l=int(math.floor(s.smoothing_window/2))
         t=len(s.currentslugtrail)
         tempstill=[]
         for i in range(0,l):
@@ -208,7 +218,9 @@ class Slug:
                tempstill.append(1)
            else:
                tempstill.append(0)
-        for i in range(0,t):
+        for i in range(t-l,t):
+           tempstill.append(s.currentslugtrail[i][3])
+        for i in range(0,t-1):
            print " {} original, {} smoothed".format(s.currentslugtrail[i][3],tempstill[i])
            s.currentslugtrail[i][3]=tempstill[i]
 
