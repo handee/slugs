@@ -30,6 +30,9 @@ else:
    outputcsvfile=inputdir+".csv"
    inputdir+='/'
 
+with open(outputcsvfile, 'a+') as f:
+   csvwrite=csv.writer(f)
+   csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y"])
 
 # read directory, get list of files, sort
 flist=glob.glob(inputdir+"*.jpg")
@@ -94,24 +97,17 @@ for fname in flist:
         # update the slug's location 
         num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
 
-        # get the locations from the slug class for output and visualisation 
         locs=thisslug.return_locations()
-        # reproject back into image coordinates
-        imx,imy=a.transform_point_to_image(locs[0],locs[1])
-        kimx,kimy=a.transform_point_to_image(locs[2],locs[3])
 
-        #output what we've got to a csvwriter
-        # filename, slugx in image coords, slugy in image coords, filtered image x, filtered image y, x in arena coords, y in arena coords, filtered arena x, filtered arena y.
-        with open(outputcsvfile, 'a+') as f:
-           csvwrite=csv.writer(f)
-           csvwrite.writerow([fname,imx,imy,kimx,kimy,locs[0],locs[1],locs[2],locs[3]])
         
         # visualise what's going on    
         out=cv2.merge([er,er,fgmask])
         slugviz=warp.copy()
         thisslug.highlight(slugviz);
+        thisslug.highlight_im(frame);
         cv2.imshow('foregound',out)
         cv2.imshow('slug',slugviz)
+        cv2.imshow('unrectified',frame)
        #uncommment the next few lines if you want to save any foreground img
        #it needs an output directory called "out"
        #fn="out/foreground"+str(n).rjust(4,'0')+".png"
@@ -122,9 +118,6 @@ for fname in flist:
         fn="out/warp"+str(n).rjust(4,'0')+".png"
         cv2.imwrite(fn,warp) 
 
-        cv2.circle(frame,(int(imx),int(imy)),2,(0,255,0),1)
-        cv2.circle(frame,(int(kimx),int(kimy)),2,(255,0,0),1)
-        cv2.imshow('unrectified',frame)
         warplist.append(fn)
             
         n+=1
@@ -161,6 +154,14 @@ fn="out/enddisks.png"
 cv2.imwrite(fn,output)
 thisslug.find_pauses()
 thisslug.list_pauses()
+
+with open(outputcsvfile, 'a+') as f:
+   csvwrite=csv.writer(f)
+   for i in range(0,n-1): 
+       d=thisslug.getrow(i) 
+       row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7])
+       csvwrite.writerow(row)
+
 thisslug.visualise_pauses(warplist)
 thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
