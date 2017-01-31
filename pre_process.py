@@ -27,19 +27,14 @@ def add_position(cfile, number, startframe):
 
 start_time=time.time()
 
-# create a cfg file with the following kind of content (without the #):
-#[s0]
-#image_folder=/home/hmd1/data/lizzie/2016-10-19/
-#frames_of_background=15 
-#difference_threshold=30 
- 
 #call program with 
-#python pre_process.py config-file-name
+#python pre_process.py directorycontainingimages 
 
 # it will create a new config file with information on frames where 
 # there's camera shake
 
 
+# get input directory and check there's a / on the end
 inputdir=sys.argv[-1]
 if (inputdir.endswith('/')):
     print inputdir
@@ -48,7 +43,7 @@ else:
     print inputdir
 
 
-#read in the start config file, and copy across defaults to our new config
+#create defaults for our new config file
 config = ConfigParser.ConfigParser()
 config.add_section('s0') 
 config.set('s0','image_folder',inputdir)
@@ -72,21 +67,24 @@ movingaverage=np.float32(grey)
 
 print "we've a maximum of {}, threshold= {}".format(maxpix,camerashake_threshold)
 shakepics.append(flist[0])
-add_position(config,pos,1)
+add_position(config,pos,0) #add the starting position
 
 moving=False
 for fname in flist:
-#read a frame from the video capture obj 
+#read a frame 
     frame=cv2.imread(fname)
-    grey= cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 #let's deal with that pesky zero case before we divide by fbuffer
     if fbuffer==0:
         fbuffer=1
     alpha=float(1.0/fbuffer)
+  # greyscale it, blur it, add it to the moving average, scale it
+    grey= cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     img_blur = cv2.GaussianBlur(grey, (5, 5), -1)
     cv2.accumulateWeighted(img_blur,movingaverage,alpha)
     res=cv2.convertScaleAbs(movingaverage)
+# get a difference image between input and average
     difference_img = cv2.absdiff(res, img_blur)
+ # threshold and count the # of pixels which differ from the bg
     ret,th1 = cv2.threshold(difference_img,difference_thresh,255,cv2.THRESH_BINARY)
     if (n>fbuffer):
         pixels_moving=np.sum(th1==255)
@@ -95,7 +93,7 @@ for fname in flist:
                #we've just started moving
                 config.set(str(pos),"endframe",n)
                 moving=True;
-            print "Shaky in Frame {} with {} moving pixels".format(n,pixels_moving) 
+            print "Shaky waky camera in frame {}, with {} moving pixels".format(n,pixels_moving) 
         else: 
             if (moving==True):
               # we've just become still after shake
@@ -114,6 +112,7 @@ seconds=time.time()-start_time
 print "Processed {} frames in {} seconds: {} fps".format(n,seconds,n/seconds)
 with open('test.cfg', 'w') as configfile:
    config.write(configfile)
+
 print "You're going to need to look at the following pictures and get arena position"
 for pic in shakepics:
    print pic
