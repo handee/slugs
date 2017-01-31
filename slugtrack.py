@@ -6,13 +6,13 @@ import common
 import video
 import math
 import sys 
+import os
 import csv
 import numpy as np
 from slug import Slug
 from arena import Arena
-#current_config_file='short_test_seq.cfg'
-#current_config_file='config.cfg'
 
+#read in config file
 current_config_file=sys.argv[-1]
 setup_section='s0'
 config = ConfigParser.ConfigParser()
@@ -21,22 +21,13 @@ inputdir= config.get(setup_section,'image_folder')
 print inputdir
 fbuffer=config.getint(setup_section,'frames_of_background') 
 difference_thresh=config.getint(setup_section,'difference_threshold') 
-
-#for output filename we want to use the directory; for reading in we need a
-#slash on the end, let's tidy this up a bit
-if (inputdir.endswith('/')):
-   outputcsvfile=inputdir[:-1]+".csv"
-else:
-   outputcsvfile=inputdir+".csv"
-   inputdir+='/'
-
-with open(outputcsvfile, 'a+') as f:
-   csvwrite=csv.writer(f)
-   csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y"])
-
 # read directory, get list of files, sort
 flist=glob.glob(inputdir+"*.jpg")
 flist.sort()
+
+# set up temporary output dir "out" if it doesn't exist
+if not os.path.exists("out"):
+    os.makedirs("out")
 
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
@@ -48,7 +39,7 @@ camerashakes.remove('s0') #get rid of setup
 camerashakes.sort()
 
 n=0 # the first frame
-a=Arena()
+a=Arena() 
 p=0 # the first camera position
 cs=camerashakes[p]
 # arena corners
@@ -68,14 +59,13 @@ init_y=config.getint(cs,'initial_slugy')
 
 a.update_location(corners);
 img=cv2.imread(flist[0])
-#grey=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# set up background model
 warp=a.crop_and_warp(img)
 overrim=warp
-#movingaverage=np.float32(warp)
 fgbg=cv2.createBackgroundSubtractorMOG2()
-x=fgbg.getVarThreshold() 
-print x
 fgbg.setVarThreshold(difference_thresh) 
+
+# set up initialisation for the slug
 x,y=a.transform_point(init_x,init_y)
 thisslug = Slug(a,x,y)
 warplist=[]
@@ -111,20 +101,26 @@ for fname in flist:
         cv2.imshow('foregound',out)
         cv2.imshow('slug',slugviz)
         cv2.imshow('unrectified',frame)
-       #uncommment the next few lines if you want to save any foreground img
-       #it needs an output directory called "out"
-       #fn="out/foreground"+str(n).rjust(4,'0')+".png"
-       #cv2.imwrite(fn,out);
-        
-        fn="out/slugviz"+str(n).rjust(4,'0')+".png"
-        cv2.imwrite(fn,slugviz);
+
+        #uncommment the next few lines if you want to save any foreground img
+        #it needs an output directory called "out"
+        #fn="out/foreground"+str(n).rjust(4,'0')+".png"
+        #cv2.imwrite(fn,out);
+
+        # again uncomment if you want to save the transformed arnea img
+        #fn="out/slugviz"+str(n).rjust(4,'0')+".png"
+        #cv2.imwrite(fn,slugviz);
+  
+        # saving warped ones for visualisation porpoises
         fn="out/warp"+str(n).rjust(4,'0')+".png"
         cv2.imwrite(fn,warp) 
 
+        #keeping filelist of the warped ones - enables us to see what is
+        #happening at key times e.g. before a slug visited a leaf disk
         warplist.append(fn)
             
         n+=1
-    if (n>=endframe):
+    if (n>=endframe): #we are past the end of that shaky bit so it's all moved
         p+=1 # the next camera position
         print "position {}".format(p)
         print "len {}".format(len(camerashakes))
@@ -152,17 +148,38 @@ for fname in flist:
     ch = cv2.waitKey(5)
     if ch == 27:
         break
+
+# storing final states
 output=fgbg.getBackgroundImage()
-fn="out/enddisks.png"
+fn="out/enddisks_bgmodel.png"
 cv2.imwrite(fn,output)
+fn="out/enddisks_raw.png"
+cv2.imwrite(fn,warp)
 thisslug.find_pauses()
 thisslug.list_pauses()
 
+# all processing done let's stick it all in a csv file
+
+
+#for output filename we want to use the directory; for reading in we need a
+#slash on the end, let's tidy this up a bit
+if (inputdir.endswith('/')):
+   outputcsvfile=inputdir[:-1]+".csv"
+else:
+   outputcsvfile=inputdir+".csv"
+   inputdir+='/'
+
 with open(outputcsvfile, 'a+') as f:
    csvwrite=csv.writer(f)
-   for i in range(0,n-2): 
+   csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y", "Still"])
+
+
+with open(outputcsvfile, 'a+') as f:
+   csvwrite=csv.writer(f)
+   for i in range(0,n-5):  # last 5 frames are dodge
        d=thisslug.getrow(i) 
-       row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7])
+       print "{} = i {} = d {} = n".format(i,d,n)
+       row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
        csvwrite.writerow(row)
 
 thisslug.visualise_pauses(warplist)
