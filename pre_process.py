@@ -40,20 +40,21 @@ start_time=time.time()
 # there's camera shake
 
 
-infilename=sys.argv[-1]
+inputdir=sys.argv[-1]
+if (inputdir.endswith('/')):
+    print inputdir
+else:
+    inputdir+='/'
+    print inputdir
 
 
 #read in the start config file, and copy across defaults to our new config
 config = ConfigParser.ConfigParser()
 config.add_section('s0') 
-stconfig = ConfigParser.ConfigParser()
-stconfig.read(infilename)
-inputdir= stconfig.get('s0','image_folder')
 config.set('s0','image_folder',inputdir)
-print inputdir
-fbuffer=stconfig.getint('s0','frames_of_background') 
+fbuffer=15
 config.set('s0','frames_of_background',fbuffer)
-difference_thresh=stconfig.getint('s0','difference_threshold') 
+difference_thresh= 30
 config.set('s0','difference_threshold',difference_thresh) 
 
 # read directory, get list of files, sort
