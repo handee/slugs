@@ -63,6 +63,8 @@ abry=config.getint(cs,'bottom_right_y')
 endframe=config.getint(cs,'endframe') 
 startframe=config.getint(cs,'startframe') 
 corners=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
+init_x=config.getint(cs,'initial_slugx') 
+init_y=config.getint(cs,'initial_slugy') 
 
 a.update_location(corners);
 img=cv2.imread(flist[0])
@@ -74,11 +76,12 @@ fgbg=cv2.createBackgroundSubtractorMOG2()
 x=fgbg.getVarThreshold() 
 print x
 fgbg.setVarThreshold(difference_thresh) 
-thisslug = Slug(a)
+x,y=a.transform_point(init_x,init_y)
+thisslug = Slug(a,x,y)
 warplist=[]
 
 for fname in flist:
-    if (n<startframe):
+    if (n<startframe+2):
        print "In a shaky gap in frame {} waiting for frame {}".format(n,startframe)
        n+=1 
     else:
@@ -157,7 +160,7 @@ thisslug.list_pauses()
 
 with open(outputcsvfile, 'a+') as f:
    csvwrite=csv.writer(f)
-   for i in range(0,n-1): 
+   for i in range(0,n-2): 
        d=thisslug.getrow(i) 
        row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7])
        csvwrite.writerow(row)
