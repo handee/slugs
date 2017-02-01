@@ -18,7 +18,7 @@ You're going to need to look at the following pictures and get arena position
 A template has been saved as test.cfg - edit this and rename it
 ```
 
-Open the files in whatever image editor you want, and work out where the corners and the slug are.  This might be tricky - sometimes you have to go forwards through the sequence to work out where the slug is, and sometimes it starts in a shelter so is not visible. In these occasions I have just marked a location in the shelter. If you are not 100% sure where the corners are as they are not actually that clear, just have a guess. These are used to convert image locations to approximate centimetre locations so are important, but being a few pixels out is not going to alter things noticably. Here's an example where I have marked slug location (actually, not visible) and corners.
+Open the files in whatever image editor you want, and work out where the corners and the slug are.  This might be tricky - sometimes you have to go forwards through the sequence to work out where the slug is, and sometimes it starts in a shelter so is not visible. In these occasions I have just marked a location in the shelter. If you are not 100% sure where the corners are as they are not actually that clear, just have a guess. These are used to convert image locations to approximate centimetre locations so are important, but being a few pixels out is not going to alter things noticably. Here's an example where I have marked slug location with tiny blue dot (actually, slug not visible as in shelter - I looked forward in the seq to see where she emerged) and corners with tiny red dots. 
 
 
 ![Example slug locations illustratoin](https://raw.githubusercontent.com/handee/slugs/master/annotated.jpg)
