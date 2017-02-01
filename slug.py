@@ -123,9 +123,10 @@ class Slug:
     # the time and place that the slug was most recently not 
     # in that box. 
     # box is defined top-left-bottom-right
-    # returns [t,x,y,m]; returns [0,0,0,0] if slug was never in box
+    # returns frame # of image where slug isn't in the box, or current frame 
+    # if that doesn't happen
     def backtrack_out_of_box(s,box,frame):
-       ret_val=[0,0,0,0]
+       ret_val=frame
        inbox=True
        while inbox:
            if (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
@@ -133,10 +134,29 @@ class Slug:
            elif (frame<0):
                inbox=False
            else:
-               ret_val=s.currentslugtrail[frame]
+               ret_val=frame
                inbox=False
        return ret_val
  
+    # takes a box and a frame and looks forward into future till it finds
+    # the time and place that the slug will next not be
+    # in that box. 
+    # box is defined top-left-bottom-right
+    # returns frame # of image where slug isn't in the box, or current frame 
+    # if that doesn't happen
+    def forwardtrack_out_of_box(s,box,frame):
+       ret_val=frame
+       inbox=True
+       while inbox:
+           if (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
+               frame+=1
+           elif (frame>len(s.currentslugtrail)):
+               inbox=False
+           else:
+               ret_val=frame
+               inbox=False
+       return ret_val
+
     # is a point in a box? True is yes, False is no
     def point_in_box(s,box,x,y):
        if ((x>box[0]) and (x<box[2]) and (y>box[1]) and (y<box[3])):
@@ -179,10 +199,9 @@ class Slug:
         st=[]
         for frame in s.currentslugtrail:
             n=0
-            print "n= {}, frame = {}, len kst = {} kst = {}".format(n,frame,len(s.kalmanslugtrail),s.kalmanslugtrail[n])
             if (still==0 and frame[3]==1):
                print "it's just stopped"
-               p[0]=n
+               p[0]=frame[0]
                p[1]=frame[1]
                p[2]=frame[2]
                p[3]=0
@@ -229,7 +248,6 @@ class Slug:
         for i in range(t-l,t):
            tempstill.append(s.currentslugtrail[i][3])
         for i in range(0,t-1):
-           print " {} original, {} smoothed".format(s.currentslugtrail[i][3],tempstill[i])
            s.currentslugtrail[i][3]=tempstill[i]
 
  
@@ -248,14 +266,19 @@ class Slug:
             if (prx>currim.shape[1]): prx=currim.shape[1]
             if (pby>currim.shape[0]): pby=currim.shape[0]
             cv2.rectangle(currim, (plx,pty), (prx,pby),(255,0,0),2)
-            loc=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
-            start=loc[0]
-            startim=cv2.imread(ims[start])
+            outofboxframeb=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
+            outofboxframea=s.forwardtrack_out_of_box((plx,prx,pty,pby),pause[0])
+            print " slug stopped in {}, frame before {} frame after {}".format(pause[3], outofboxframeb, outofboxframea)
+            startim=cv2.imread(ims[outofboxframeb])
+            afterim=cv2.imread(ims[outofboxframea])
             cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
-            fn="out/stillb4{}.png".format(pause[0],'03')
+            cv2.rectangle(afterim, (plx,pty), (prx,pby),(255,0,0),2)
+            fn="out/stillbefore_{}.png".format(pause[0],'03')
             cv2.imwrite(fn,startim)
             fn="out/stillstart{}.png".format(pause[0],'03')
             cv2.imwrite(fn,currim)
+            fn="out/stillforward{}.png".format(pause[0],'03')
+            cv2.imwrite(fn,afterim)
 #
 
 # takes the slug trails as a set and draws the pics    
@@ -266,7 +289,6 @@ class Slug:
            if (len(currenttrail)>3):
                currim=cv2.imread(filelist[currenttrail[0][0]])
                for point in currenttrail:
-                   print point
                    cv2.circle(currim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
                    cv2.circle(overim,(int(point[1]),int(point[2])),2,(255,0,0),-1)
                cv2.circle(currim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)

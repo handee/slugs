@@ -7,6 +7,7 @@ import video
 import math
 import sys 
 import os
+import glob
 import csv
 import numpy as np
 from slug import Slug
@@ -195,12 +196,11 @@ with open(outputcsvfile, 'a+') as f:
    csvwrite=csv.writer(f)
    for i in range(0,n-5):  # last 5 frames are dodge
        d=thisslug.getrow(i) 
-       print "{} = i {} = d {} = n".format(i,d,n)
        row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
        csvwrite.writerow(row)
 
 thisslug.visualise_pauses(warplist)
 thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
-
+os.remove(glob('out/warp*.jpg'))
 
