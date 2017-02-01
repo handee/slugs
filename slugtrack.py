@@ -59,6 +59,23 @@ init_y=config.getint(cs,'initial_slugy')
 
 a.update_location(corners);
 img=cv2.imread(flist[0])
+
+# save corner image for visualisation purposes
+cornerim=img.copy()
+cv2.circle(cornerim, (atrx,atry), 4, (255,0,0), -1)
+cv2.circle(cornerim, (atrx,atry), 1, (255,255,255), -1)
+cv2.circle(cornerim, (abrx,abry), 4, (255,0,0), -1)
+cv2.circle(cornerim, (abrx,abry), 1, (255,255,255), -1)
+cv2.circle(cornerim, (ablx,ably), 4, (255,0,0), -1)
+cv2.circle(cornerim, (ablx,ably), 1, (255,255,255), -1)
+cv2.circle(cornerim, (atlx,atly), 4, (255,0,0), -1)
+cv2.circle(cornerim, (atlx,atly), 1, (255,255,255), -1)
+cv2.circle(cornerim, (init_x,init_y), 4, (0,255,0), -1)
+cv2.circle(cornerim, (init_x,init_y), 1, (255,255,255), -1)
+fn="out/initialisation_locations.jpg"
+cv2.imwrite(fn,cornerim);
+
+
 # set up background model
 warp=a.crop_and_warp(img)
 overrim=warp
