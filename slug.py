@@ -28,10 +28,15 @@ class Slug:
     kslug=[]
     slugstills=[]  # array of still locations, segmented
     slugtrails=[]  # array of trails, segmented
+    traillengths=[]# pointbypoint lengths of slugtrails
+    trailstartend=[]# start to end distance
+    trailduration=[]# start to end distance
     slugmindist=20
+    bigblobthresh=200
+    tinyslugthresh=4
     still=1 #is the slug still? (starts off still)
     ar=[] # arena
-    smoothing_window=5 # for smoothing the stillness or otherwise; 
+    smoothing_window=9 # for smoothing the stillness or otherwise; 
                        #it's an average
     def __init__(s,a,x,y):
         print "initialising at {},{}".format(x,y)
@@ -109,7 +114,8 @@ class Slug:
         newstats=[]
         for i in range(0, num_labels):
             if not (math.isnan(centroids[i][0])):
-                if (stats[i][4]<2000):
+               # get rid of really big blobs and really tiny ones
+               if (stats[i][4]<s.bigblobthresh) and (stats[i][4]>s.tinyslugthresh):
                     newcentroids.append(centroids[i])
                     newstats.append(stats[i])            
         num_blobs=len(newcentroids) 
@@ -123,16 +129,15 @@ class Slug:
     # the time and place that the slug was most recently not 
     # in that box. 
     # box is defined top-left-bottom-right
-    # returns frame # of image where slug isn't in the box, or current frame 
+    # returns frame # of image where slug isn't in the box, or -1 
     # if that doesn't happen
     def backtrack_out_of_box(s,box,frame):
-       print "backtracking out of {} frame {}".format(box,frame)
        ret_val=frame
        default=frame
        inbox=True
        while inbox:
            if (frame<=0):
-               ret_val=default
+               ret_val=-1
                break 
            elif (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
                frame-=1
@@ -146,16 +151,14 @@ class Slug:
     # the time and place that the slug will next not be
     # in that box. 
     # box is defined top-left-bottom-right
-    # returns frame # of image where slug isn't in the box, or current frame 
+    # returns frame # of image where slug isn't in the box, or -1 
     # if that doesn't happen
     def forwardtrack_out_of_box(s,box,frame):
-       print "forwardtracking out of {} frame {}".format(box,frame)
        ret_val=frame
-       default=frame
        inbox=True
        while inbox:
            if (frame>=len(s.currentslugtrail)-1):
-               ret_val=default
+               ret_val=-1
                break
            elif (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
                frame+=1
@@ -276,18 +279,38 @@ class Slug:
             cv2.rectangle(currim, (plx,pty), (prx,pby),(255,0,0),2)
             outofboxframeb=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
             outofboxframea=s.forwardtrack_out_of_box((plx,prx,pty,pby),pause[0]+pause[3])
-            print " slug stopped in {}, frame before {} frame after {}".format(pause[0], outofboxframeb, outofboxframea)
-            startim=cv2.imread(ims[outofboxframeb])
-            afterim=cv2.imread(ims[outofboxframea])
-            cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
-            cv2.rectangle(afterim, (plx,pty), (prx,pby),(255,0,0),2)
-            fn="out/stillbefore_{}.png".format(pause[0],'03')
-            cv2.imwrite(fn,startim)
+            if (outofboxframeb>0):
+               startim=cv2.imread(ims[outofboxframeb])
+               cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
+	       fn="out/stillbefore_{}.png".format(pause[0],'03')
+	       cv2.imwrite(fn,startim)
+            if (outofboxframea>0):
+               afterim=cv2.imread(ims[outofboxframea])
+               cv2.rectangle(afterim, (plx,pty), (prx,pby),(255,0,0),2)
+               fn="out/stillforward{}.png".format(pause[0],'03')
+               cv2.imwrite(fn,afterim)
             fn="out/stillstart{}.png".format(pause[0],'03')
             cv2.imwrite(fn,currim)
-            fn="out/stillforward{}.png".format(pause[0],'03')
-            cv2.imwrite(fn,afterim)
 #
+
+# takes the slug trails as a set, calculates metadata, ouputs
+    def list_trails(s):    
+        for currenttrail in s.slugtrails:
+            pathlen=0
+            for i in range (1,len(currenttrail)):
+                xdiff2=(currenttrail[i][1]-currenttrail[i-1][1])*(currenttrail[i][1]-currenttrail[i-1][1])
+                ydiff2=(currenttrail[i][2]-currenttrail[i-1][2])*(currenttrail[i][2]-currenttrail[i-1][2])
+                stepdiff=math.sqrt(xdiff2+ydiff2)
+                pathlen+=stepdiff
+            s.traillengths.append(pathlen)
+            disttravelledx=(currenttrail[0][1]-currenttrail[-1][1])*(currenttrail[0][1]-currenttrail[-1][1])
+            disttravelledy=(currenttrail[0][2]-currenttrail[-1][2])*(currenttrail[0][2]-currenttrail[-1][2])
+            s.trailstartend.append(math.sqrt(disttravelledx+disttravelledy))
+            s.trailduration.append(currenttrail[-1][0]-currenttrail[0][0])
+            print "Trail starting in {} from {},{} to {},{}; length {} distance {} duration {}".format(currenttrail[0][0],
+                currenttrail[0][1],currenttrail[0][2],currenttrail[-1][1],
+                currenttrail[-1][2],s.traillengths[-1],s.trailstartend[-1],s.trailduration[-1])
+
 
 # takes the slug trails as a set and draws the pics    
     def visualise_trails(s,movingav,filelist):    
