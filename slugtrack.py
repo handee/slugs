@@ -89,55 +89,57 @@ thisslug = Slug(a,x,y)
 warplist=[]
 
 for fname in flist:
-    if (n<startframe+2):
-       print "In a shaky gap in frame {} waiting for frame {}".format(n,startframe)
-       n+=1 
-    else:
 #read a frame from the video capture obj 
-        frame=cv2.imread(fname)
-        warp=a.crop_and_warp(frame)
-        # get the foreground (moving object) mask from our background model 
-        fgmask=fgbg.apply(warp)
-        # create a 5x5 eliptical structuring element
-        element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-        #remove tiny foreground blobs
-        er=cv2.erode(fgmask,element,iterations=1); 
-        # work out connected components (4-connected)
-        connectivity = 4  
-        ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
-        # update the slug's location 
+     frame=cv2.imread(fname)
+     warp=a.crop_and_warp(frame)
+     # get the foreground (moving object) mask from our background model 
+     fgmask=fgbg.apply(warp)
+     # create a 5x5 eliptical structuring element
+     element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+     #remove tiny foreground blobs
+     er=cv2.erode(fgmask,element,iterations=1); 
+     # work out connected components (4-connected)
+     connectivity = 4  
+     ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
+     if (n<startframe):
+        # we are in a shaky bit, don't bother tracking slugs but do store images
+        # and update bg model
+        print "In a shaky gap in frame {} waiting for frame {}".format(n,startframe)
+        n+=1 
+        # visualise what's going on    
+        out=cv2.merge([er,er,fgmask])
+        slugviz=warp.copy()
+    else:
+       # update the slug's location 
         num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
 
         locs=thisslug.return_locations()
 
         
-        # visualise what's going on    
-        out=cv2.merge([er,er,fgmask])
-        slugviz=warp.copy()
         thisslug.highlight(slugviz);
         thisslug.highlight_im(frame);
-        cv2.imshow('foregound',out)
-        cv2.imshow('slug',slugviz)
-        cv2.imshow('unrectified',frame)
+    cv2.imshow('foregound',out)
+    cv2.imshow('slug',slugviz)
+    cv2.imshow('unrectified',frame)
 
-        #uncommment the next few lines if you want to save any foreground img
-        #it needs an output directory called "out"
-        #fn="out/foreground"+str(n).rjust(4,'0')+".png"
-        #cv2.imwrite(fn,out);
+    #uncommment the next few lines if you want to save any foreground img
+    #it needs an output directory called "out"
+    #fn="out/foreground"+str(n).rjust(4,'0')+".png"
+    #cv2.imwrite(fn,out);
 
-        # again uncomment if you want to save the transformed arnea img
-        #fn="out/slugviz"+str(n).rjust(4,'0')+".png"
-        #cv2.imwrite(fn,slugviz);
+    # again uncomment if you want to save the transformed arnea img
+    fn="out/slugviz"+str(n).rjust(4,'0')+".png"
+    cv2.imwrite(fn,slugviz);
   
-        # saving warped ones for visualisation porpoises
-        fn="out/warp"+str(n).rjust(4,'0')+".png"
-        cv2.imwrite(fn,warp) 
+    # saving warped ones for visualisation porpoises
+    fn="out/warp"+str(n).rjust(4,'0')+".png"
+    cv2.imwrite(fn,warp) 
 
-        #keeping filelist of the warped ones - enables us to see what is
-        #happening at key times e.g. before a slug visited a leaf disk
-        warplist.append(fn)
+    #keeping filelist of the warped ones - enables us to see what is
+    #happening at key times e.g. before a slug visited a leaf disk
+    warplist.append(fn)
             
-        n+=1
+    n+=1
     if (n>=endframe): #we are past the end of that shaky bit so it's all moved
         p+=1 # the next camera position
         print "position {}".format(p)
@@ -202,5 +204,5 @@ with open(outputcsvfile, 'a+') as f:
 thisslug.visualise_pauses(warplist)
 thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
-os.remove(glob('out/warp*.jpg'))
+#os.remove(glob('out/warp*.jpg'))
 

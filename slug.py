@@ -126,16 +126,20 @@ class Slug:
     # returns frame # of image where slug isn't in the box, or current frame 
     # if that doesn't happen
     def backtrack_out_of_box(s,box,frame):
+       print "backtracking out of {} frame {}".format(box,frame)
        ret_val=frame
+       default=frame
        inbox=True
        while inbox:
-           if (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
+           if (frame<=0):
+               ret_val=default
+               break 
+           elif (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
                frame-=1
-           elif (frame<0):
-               inbox=False
            else:
                ret_val=frame
                inbox=False
+       print "returning {}".format(ret_val)
        return ret_val
  
     # takes a box and a frame and looks forward into future till it finds
@@ -145,16 +149,20 @@ class Slug:
     # returns frame # of image where slug isn't in the box, or current frame 
     # if that doesn't happen
     def forwardtrack_out_of_box(s,box,frame):
+       print "forwardtracking out of {} frame {}".format(box,frame)
        ret_val=frame
+       default=frame
        inbox=True
        while inbox:
-           if (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
+           if (frame>=len(s.currentslugtrail)-1):
+               ret_val=default
+               break
+           elif (s.point_in_box(box, s.currentslugtrail[frame][1],s.currentslugtrail[frame][2])): 
                frame+=1
-           elif (frame>len(s.currentslugtrail)):
-               inbox=False
            else:
                ret_val=frame
                inbox=False
+       print "returning {}".format(ret_val)
        return ret_val
 
     # is a point in a box? True is yes, False is no
@@ -260,15 +268,15 @@ class Slug:
             prx=int (pause[1]+w)
             pty=int (pause[2]-h)
             pby=int (pause[2]+h)
-            currim=cv2.imread(ims[pause[3]])
+            currim=cv2.imread(ims[pause[0]])
             if (plx<0): plx=0
             if (pty<0): pty=0
             if (prx>currim.shape[1]): prx=currim.shape[1]
             if (pby>currim.shape[0]): pby=currim.shape[0]
             cv2.rectangle(currim, (plx,pty), (prx,pby),(255,0,0),2)
             outofboxframeb=s.backtrack_out_of_box((plx,prx,pty,pby),pause[0])
-            outofboxframea=s.forwardtrack_out_of_box((plx,prx,pty,pby),pause[0])
-            print " slug stopped in {}, frame before {} frame after {}".format(pause[3], outofboxframeb, outofboxframea)
+            outofboxframea=s.forwardtrack_out_of_box((plx,prx,pty,pby),pause[0]+pause[3])
+            print " slug stopped in {}, frame before {} frame after {}".format(pause[0], outofboxframeb, outofboxframea)
             startim=cv2.imread(ims[outofboxframeb])
             afterim=cv2.imread(ims[outofboxframea])
             cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
