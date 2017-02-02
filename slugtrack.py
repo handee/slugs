@@ -13,6 +13,10 @@ import numpy as np
 from slug import Slug
 from arena import Arena
 
+#magic number to get rid of some baby slugs
+slugsize=5
+
+
 #read in config file
 current_config_file=sys.argv[-1]
 setup_section='s0'
@@ -54,11 +58,12 @@ abrx=config.getint(cs,'bottom_right_x')
 abry=config.getint(cs,'bottom_right_y') 
 endframe=config.getint(cs,'endframe') 
 startframe=config.getint(cs,'startframe') 
-corners=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
 init_x=config.getint(cs,'initial_slugx') 
 init_y=config.getint(cs,'initial_slugy') 
-
+#set arena location
+corners=np.float32([[atlx,atly],[atrx,atry],[ablx,ably],[abrx,abry]]) 
 a.update_location(corners);
+
 img=cv2.imread(flist[0])
 
 # save corner image for visualisation purposes
@@ -76,10 +81,12 @@ cv2.circle(cornerim, (init_x,init_y), 1, (255,255,255), -1)
 fn="out/initialisation_locations.jpg"
 cv2.imwrite(fn,cornerim);
 
+# warp image to arena coordinates
+warp=a.crop_and_warp(img)
+fn="out/initialdisks.jpg"
+cv2.imwrite(fn,warp);
 
 # set up background model
-warp=a.crop_and_warp(img)
-overrim=warp
 fgbg=cv2.createBackgroundSubtractorMOG2()
 fgbg.setVarThreshold(difference_thresh) 
 
@@ -95,21 +102,20 @@ for fname in flist:
      # get the foreground (moving object) mask from our background model 
      fgmask=fgbg.apply(warp)
      # create a 5x5 eliptical structuring element
-     element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+     element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(slugsize,slugsize))
      #remove tiny foreground blobs
      er=cv2.erode(fgmask,element,iterations=1); 
      # work out connected components (4-connected)
      connectivity = 4  
      ccraw= cv2.connectedComponentsWithStats(er, connectivity, cv2.CV_32S)
-     if (n<startframe):
+     # visualise what's going on    
+     slugviz=warp.copy()
+     if (n<=startframe):
         # we are in a shaky bit, don't bother tracking slugs but do store images
         # and update bg model
         print "In a shaky gap in frame {} waiting for frame {}".format(n,startframe)
         n+=1 
-        # visualise what's going on    
-        out=cv2.merge([er,er,fgmask])
-        slugviz=warp.copy()
-    else:
+     else:
        # update the slug's location 
         num_labels,centroids,stats=thisslug.update_location(ccraw,n)    
 
@@ -118,29 +124,30 @@ for fname in flist:
         
         thisslug.highlight(slugviz);
         thisslug.highlight_im(frame);
-    cv2.imshow('foregound',out)
-    cv2.imshow('slug',slugviz)
-    cv2.imshow('unrectified',frame)
+     out=cv2.merge([er,er,fgmask])
+     cv2.imshow('foregound',out)
+     cv2.imshow('slug',slugviz)
+     cv2.imshow('unrectified',frame)
 
-    #uncommment the next few lines if you want to save any foreground img
-    #it needs an output directory called "out"
-    #fn="out/foreground"+str(n).rjust(4,'0')+".png"
-    #cv2.imwrite(fn,out);
+     #uncommment the next few lines if you want to save any foreground img
+     #it needs an output directory called "out"
+     #fn="out/foreground"+str(n).rjust(5,'0')+".png"
+     #cv2.imwrite(fn,out);
 
-    # again uncomment if you want to save the transformed arnea img
-    fn="out/slugviz"+str(n).rjust(4,'0')+".png"
-    cv2.imwrite(fn,slugviz);
+     # again uncomment if you want to save the transformed arena img
+     #fn="out/slugviz"+str(n).rjust(5,'0')+".png"
+     #cv2.imwrite(fn,slugviz);
   
-    # saving warped ones for visualisation porpoises
-    fn="out/warp"+str(n).rjust(4,'0')+".png"
-    cv2.imwrite(fn,warp) 
+     # saving warped ones for visualisation porpoises : these will be deleted at the end
+     fn="out/warp"+str(n).rjust(5,'0')+".png"
+     cv2.imwrite(fn,warp) 
 
     #keeping filelist of the warped ones - enables us to see what is
     #happening at key times e.g. before a slug visited a leaf disk
-    warplist.append(fn)
+     warplist.append(fn)
             
-    n+=1
-    if (n>=endframe): #we are past the end of that shaky bit so it's all moved
+     n+=1
+     if (n>=endframe): #we are past the end of that shaky bit so it's all moved
         p+=1 # the next camera position
         print "position {}".format(p)
         print "len {}".format(len(camerashakes))
@@ -165,8 +172,8 @@ for fname in flist:
 
 
 #open cv window management/redraw stuff
-    ch = cv2.waitKey(5)
-    if ch == 27:
+     ch = cv2.waitKey(5)
+     if ch == 27:
         break
 
 # storing final states
@@ -177,6 +184,7 @@ fn="out/enddisks_raw.png"
 cv2.imwrite(fn,warp)
 thisslug.find_pauses()
 thisslug.list_pauses()
+thisslug.list_trails()
 
 # all processing done let's stick it all in a csv file
 
@@ -204,5 +212,6 @@ with open(outputcsvfile, 'a+') as f:
 thisslug.visualise_pauses(warplist)
 thisslug.visualise_trails(output,warplist)
 cv2.destroyAllWindows()
-#os.remove(glob('out/warp*.jpg'))
+#delete temporary warp images 
+os.remove(glob('out/warp*.jpg'))
 
