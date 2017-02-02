@@ -33,7 +33,7 @@ class Slug:
     trailduration=[]# start to end distance
     slugmindist=20
     bigblobthresh=200
-    tinyslugthresh=4
+    tinyslugthresh=3
     still=1 #is the slug still? (starts off still)
     ar=[] # arena
     smoothing_window=9 # for smoothing the stillness or otherwise; 
