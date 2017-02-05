@@ -274,8 +274,8 @@ class Slug:
             if (outofboxframeb>0):
                startim=cv2.imread(ims[outofboxframeb])
                cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
-	        fn=odir+"still{:05}_before.png".format(pause[0],'05d')
-	        cv2.imwrite(fn,startim)
+            fn=odir+"still{:05}_before.png".format(pause[0],'05d')
+            cv2.imwrite(fn,startim)
             if (outofboxframea>0):
                afterim=cv2.imread(ims[outofboxframea])
                cv2.rectangle(afterim, (plx,pty), (prx,pby),(255,0,0),2)
