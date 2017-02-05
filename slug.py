@@ -49,7 +49,6 @@ class Slug:
     def update_location(s, o, n):
         num_blobs,centroids,stats=s.prune_outputs(o)    
         if len(centroids)<1:
-           print "no movement detected in frame {} ".format(n)
            s.slugx=s.lastslugx
            s.slugy=s.lastslugy
            if s.still==0:
@@ -60,7 +59,6 @@ class Slug:
         # with just one detected motion patch but if we find more
         # find the closest to the last known slug position 
         if (len(centroids)>=1):
-           print "movement detected in frame {} ".format(n)
            if (s.still==1):
               s.still=0
            if (len(centroids)==1):
@@ -144,7 +142,6 @@ class Slug:
            else:
                ret_val=frame
                inbox=False
-       print "returning {}".format(ret_val)
        return ret_val
  
     # takes a box and a frame and looks forward into future till it finds
@@ -165,7 +162,6 @@ class Slug:
            else:
                ret_val=frame
                inbox=False
-       print "returning {}".format(ret_val)
        return ret_val
 
     # is a point in a box? True is yes, False is no
@@ -211,7 +207,6 @@ class Slug:
         for frame in s.currentslugtrail:
             n=0
             if (still==0 and frame[3]==1):
-               print "it's just stopped"
                p[0]=frame[0]
                p[1]=frame[1]
                p[2]=frame[2]
@@ -219,12 +214,9 @@ class Slug:
                s.slugtrails.append(st)
                st=[]
             elif (still==1 and frame[3]==1):
-               print "it's still"
-               #pause[0]=frame[0]
                #it's been stopped for a bit, increment the counter
                p[3]+=1
             elif (still == 1 and frame[3]==0):
-               print "it's startedupagain"
                #it's started moving again, store the pause info
                s.slugstills.append(p)
                p=[0,0,0,0]
@@ -263,7 +255,7 @@ class Slug:
 
  
 # visualises all the times the slug was still
-    def visualise_pauses(s,ims):
+    def visualise_pauses(s,ims,odir):
         w=15
         h=15
         for pause in s.slugstills:
@@ -282,14 +274,14 @@ class Slug:
             if (outofboxframeb>0):
                startim=cv2.imread(ims[outofboxframeb])
                cv2.rectangle(startim, (plx,pty), (prx,pby),(255,0,0),2)
-	       fn="out/stillbefore_{}.png".format(pause[0],'03')
-	       cv2.imwrite(fn,startim)
+	        fn=odir+"still{:05}_before.png".format(pause[0],'05d')
+	        cv2.imwrite(fn,startim)
             if (outofboxframea>0):
                afterim=cv2.imread(ims[outofboxframea])
                cv2.rectangle(afterim, (plx,pty), (prx,pby),(255,0,0),2)
-               fn="out/stillforward{}.png".format(pause[0],'03')
+               fn=odir+"still{:05}_forward.png".format(pause[0])
                cv2.imwrite(fn,afterim)
-            fn="out/stillstart{}.png".format(pause[0],'03')
+            fn=odir+"still{:05}_during.png".format(pause[0])
             cv2.imwrite(fn,currim)
 #
 
@@ -313,7 +305,7 @@ class Slug:
 
 
 # takes the slug trails as a set and draws the pics    
-    def visualise_trails(s,movingav,filelist):    
+    def visualise_trails(s,movingav,filelist,odir):    
         print "Going to visualise {} slugtrails now".format(len(s.slugtrails))
         overim=movingav.copy()
         for currenttrail in s.slugtrails:
@@ -326,9 +318,9 @@ class Slug:
                cv2.circle(currim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
                cv2.circle(overim,(int(currenttrail[-1][1]),int(currenttrail[-1][2])),2,(0,0,255),2)
                cv2.circle(overim,(int(currenttrail[0][1]),int(currenttrail[0][2])),2,(0,255,0),2)
-               fn="out/trail{}.png".format(currenttrail[0][0],'03')
+               fn=odir+"trail{:05}.png".format(currenttrail[0][0])
                cv2.imwrite(fn,currim)
-        fn="out/alltrails{}.png".format(currenttrail[0][0],'03')
+        fn=odir+"alltrails{:05}.png".format(currenttrail[0][0])
         cv2.imwrite(fn,overim)
  
         

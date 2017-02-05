@@ -30,9 +30,19 @@ difference_thresh=config.getint(setup_section,'difference_threshold')
 flist=glob.glob(inputdir+"*.jpg")
 flist.sort()
 
-# set up temporary output dir "out" if it doesn't exist
-if not os.path.exists("out"):
-    os.makedirs("out")
+#inputdir should have a / at the end. check this is the case, also
+#setup output directory to be inputdir_out
+if (inputdir.endswith('/')):
+   outputdir=inputdir[:-1]+"_out/"
+else:
+   outputdir=inputdir+"_out/"
+   inputdir+='/'
+
+print "Output will be saved to {}".format(outputdir)
+# set up output dir if it doesn't exist
+if not os.path.exists(outputdir):
+    print "Creating directory now"
+    os.makedirs(outputdir)
 
 #give us a visualisation window or two
 cv2.namedWindow('foregound')
@@ -78,12 +88,12 @@ cv2.circle(cornerim, (atlx,atly), 4, (255,0,0), -1)
 cv2.circle(cornerim, (atlx,atly), 1, (255,255,255), -1)
 cv2.circle(cornerim, (init_x,init_y), 4, (0,255,0), -1)
 cv2.circle(cornerim, (init_x,init_y), 1, (255,255,255), -1)
-fn="out/initialisation_locations.jpg"
+fn=outputdir+"initialisation_locations.jpg"
 cv2.imwrite(fn,cornerim);
 
 # warp image to arena coordinates
 warp=a.crop_and_warp(img)
-fn="out/initialdisks.jpg"
+fn=outputdir+"initialdisks.jpg"
 cv2.imwrite(fn,warp);
 
 # set up background model
@@ -101,7 +111,7 @@ for fname in flist:
      warp=a.crop_and_warp(frame)
      # get the foreground (moving object) mask from our background model 
      fgmask=fgbg.apply(warp)
-     # create a 5x5 eliptical structuring element
+     # create a structuring element based on our slug size estimate
      element=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(slugsize,slugsize))
      #remove tiny foreground blobs
      er=cv2.erode(fgmask,element,iterations=1); 
@@ -124,22 +134,22 @@ for fname in flist:
         
         thisslug.highlight(slugviz);
         thisslug.highlight_im(frame);
-     out=cv2.merge([er,er,fgmask])
-     cv2.imshow('foregound',out)
+     fgimg=cv2.merge([er,er,fgmask])
+     cv2.imshow('foregound',fgimg)
      cv2.imshow('slug',slugviz)
      cv2.imshow('unrectified',frame)
 
      #uncommment the next few lines if you want to save any foreground img
      #it needs an output directory called "out"
-     #fn="out/foreground"+str(n).rjust(5,'0')+".png"
-     #cv2.imwrite(fn,out);
+     #fn=outputdir+"foreground"+str(n).rjust(5,'0')+".png"
+     #cv2.imwrite(fn,fgimg);
 
      # again uncomment if you want to save the transformed arena img
-     #fn="out/slugviz"+str(n).rjust(5,'0')+".png"
+     #fn=outputdir+"slugviz"+str(n).rjust(5,'0')+".png"
      #cv2.imwrite(fn,slugviz);
   
      # saving warped ones for visualisation porpoises : these will be deleted at the end
-     fn="out/warp"+str(n).rjust(5,'0')+".png"
+     fn=outputdir+"warp"+str(n).rjust(5,'0')+".png"
      cv2.imwrite(fn,warp) 
 
     #keeping filelist of the warped ones - enables us to see what is
@@ -178,9 +188,9 @@ for fname in flist:
 
 # storing final states
 output=fgbg.getBackgroundImage()
-fn="out/enddisks_bgmodel.png"
+fn=outputdir+"enddisks_bgmodel.png"
 cv2.imwrite(fn,output)
-fn="out/enddisks_raw.png"
+fn=outputdir+"enddisks_raw.png"
 cv2.imwrite(fn,warp)
 thisslug.find_pauses()
 thisslug.list_pauses()
@@ -191,12 +201,7 @@ thisslug.list_trails()
 
 #for output filename we want to use the directory; for reading in we need a
 #slash on the end, let's tidy this up a bit
-if (inputdir.endswith('/')):
-   outputcsvfile=inputdir[:-1]+".csv"
-else:
-   outputcsvfile=inputdir+".csv"
-   inputdir+='/'
-
+outputcsvfile=outputdir+"summary.csv"
 with open(outputcsvfile, 'a+') as f:
    csvwrite=csv.writer(f)
    csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y", "Still"])
@@ -209,9 +214,12 @@ with open(outputcsvfile, 'a+') as f:
        row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
        csvwrite.writerow(row)
 
-thisslug.visualise_pauses(warplist)
-thisslug.visualise_trails(output,warplist)
+thisslug.visualise_pauses(warplist,outputdir)
+thisslug.visualise_trails(output,warplist,outputdir)
 cv2.destroyAllWindows()
 #delete temporary warp images 
-os.remove(glob('out/warp*.jpg'))
+rmstring=outputdir+"warp*"
+filelist = glob.glob(rmstring)
+for f in filelist:
+    os.remove(f)
 
