@@ -214,6 +214,11 @@ with open(outputcsvfile, 'a+') as f:
        row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
        csvwrite.writerow(row)
 
+#save occupancy grid
+ofn=outputdir+"occupancy.csv"
+a.save_occupancy(ofn)
+ofn=outputdir+"occupancy.png"
+a.save_occupancy_image(ofn)
 thisslug.visualise_pauses(warplist,outputdir)
 thisslug.visualise_trails(output,warplist,outputdir)
 cv2.destroyAllWindows()
@@ -222,4 +227,5 @@ rmstring=outputdir+"warp*"
 filelist = glob.glob(rmstring)
 for f in filelist:
     os.remove(f)
+
 

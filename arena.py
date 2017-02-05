@@ -1,8 +1,8 @@
 import cv2
-import common
-import video
 import math
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 
 # Arena class - holds information about the size of the arena
@@ -14,6 +14,7 @@ import numpy as np
 class Arena:
     width=580 # width of arena in mm
     height=420 # height of arena in mm
+    occupancy=np.zeros((int(height/10), int(width/10)), dtype=np.int)
     pts_world=np.float32([[0,0],[width,0],[0,height],[width,height]])
     pts_arena=[]
 # transformation matrix: image -> arena
@@ -59,3 +60,16 @@ class Arena:
         s.tm = cv2.getPerspectiveTransform(s.pts_arena,s.pts_world)
         s.tmi = cv2.getPerspectiveTransform(s.pts_world,s.pts_arena)
 
+
+    def increment_occupancy(s,x,y):
+        s.occupancy[int(y/10)][int(x/10)]+=1
+    
+    def save_occupancy(s,filename):
+        np.savetxt(filename, s.occupancy, delimiter=',')
+   
+    def get_occupancy(s):
+        return(s.occupancy)
+
+    def save_occupancy_image(s, fn):
+        plt.imshow(s.occupancy, cmap='hot', interpolation='nearest')
+        plt.savefig(fn)

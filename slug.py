@@ -78,6 +78,7 @@ class Slug:
            s.lastslugy=s.slugy
         # now s.slugx and s.slugy contain the slug's location
         s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
+        s.ar.increment_occupancy(s.slugx,s.slugy)
          
         #apply Kalman filter; not actually used but saved just in case it
         #turns out to be useful in the future
