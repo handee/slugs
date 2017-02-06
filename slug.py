@@ -4,6 +4,8 @@ import common
 import video
 import math
 import numpy as np
+import csv
+
 
 class Slug:
     kalman = cv2.KalmanFilter(4,2)
@@ -26,8 +28,8 @@ class Slug:
     icurrentslugtrail=[] #image coords not arena coords
     ikalmanslugtrail=[] # image coords not arena coords
     kslug=[]
-    slugstills=[]  # array of still locations, segmented
-    slugtrails=[]  # array of trails, segmented
+    slugstills=[]  # array of still locations, segmented, 
+    slugtrails=[]  # array of trails, segmented, arena then image coords
     traillengths=[]# pointbypoint lengths of slugtrails
     trailstartend=[]# start to end distance
     trailduration=[]# start to end distance
@@ -38,6 +40,7 @@ class Slug:
     ar=[] # arena
     smoothing_window=9 # for smoothing the stillness or otherwise; 
                        #it's an average
+    totalframes=0
     def __init__(s,a,x,y):
         print "initialising at {},{}".format(x,y)
         s.ar=a
@@ -94,6 +97,7 @@ class Slug:
         s.ikx,s.iky=s.ar.transform_point_to_image(s.kslugx,s.kslugy)
         s.icurrentslugtrail.append((s.ix,s.iy))
         s.ikalmanslugtrail.append((s.ikx,s.iky))
+        s.totalframes+=1
         return(num_blobs, centroids, stats)
 
 ###
@@ -205,8 +209,8 @@ class Slug:
         p=[0,0,0,0]
         s.smooth_still_estimate()
         st=[]
+        n=0
         for frame in s.currentslugtrail:
-            n=0
             if (still==0 and frame[3]==1):
                p[0]=frame[0]
                p[1]=frame[1]
@@ -222,17 +226,21 @@ class Slug:
                s.slugstills.append(p)
                p=[0,0,0,0]
                #also we're moving, append to the current slug trail
-               st.append([frame[0],frame[1],frame[2]])
+               #store frame (arena coords) but also icurrentslugtrail 
+               #(image coords) for later convenience
+               st.append([frame[0],frame[1],frame[2],s.icurrentslugtrail[n][0],s.icurrentslugtrail[n][1]])
             else:
                #we're moving, append to the current slug trail
-               st.append([frame[0],frame[1],frame[2]])
+               st.append([frame[0],frame[1],frame[2],s.icurrentslugtrail[n][0],s.icurrentslugtrail[n][1]])
             still=frame[3]
+            n=n+1
+
+        #we finished the trail, so store the last thing we were looking at 
         if (still==1):
-           #we finished still so store it
            s.slugstills.append(p)
         else:
            s.slugtrails.append(st)
-        n=n+1
+        s.calculate_metadata()    
     
             
     def smooth_still_estimate(s):
@@ -286,8 +294,8 @@ class Slug:
             cv2.imwrite(fn,currim)
 #
 
-# takes the slug trails as a set, calculates metadata, ouputs
-    def list_trails(s):    
+# takes the slug trails as a set, calculates metadata
+    def calculate_metadata(s):    
         for currenttrail in s.slugtrails:
             pathlen=0
             for i in range (1,len(currenttrail)):
@@ -300,9 +308,26 @@ class Slug:
             disttravelledy=(currenttrail[0][2]-currenttrail[-1][2])*(currenttrail[0][2]-currenttrail[-1][2])
             s.trailstartend.append(math.sqrt(disttravelledx+disttravelledy))
             s.trailduration.append(currenttrail[-1][0]-currenttrail[0][0])
-            print "Trail starting in {} from {},{} to {},{}; length {} distance {} duration {}".format(currenttrail[0][0],
-                currenttrail[0][1],currenttrail[0][2],currenttrail[-1][1],
-                currenttrail[-1][2],s.traillengths[-1],s.trailstartend[-1],s.trailduration[-1])
+
+
+    def write_trail_metadata_to_file(s,fn):
+        with open(fn, 'a+') as f:
+           csvwrite=csv.writer(f)
+           csvwrite.writerow(["start frame","start x","start y","image start x","image start y","finish x","finish y","image finish x","image finish y", "length", "distance", "duration"])
+           n=0
+           for currenttrail in s.slugtrails:
+                row = (currenttrail[0][0],currenttrail[0][1],currenttrail[0][2],currenttrail[0][3],currenttrail[0][4],currenttrail[-1][1], currenttrail[-1][2], currenttrail[-1][3],currenttrail[-1][4],s.traillengths[n],s.trailstartend[n],s.trailduration[n])
+                csvwrite.writerow(row)
+                n+=1
+
+    def write_trail_data_to_file(s,fn,flist):
+        with open(fn, 'a+') as f:
+           csvwrite=csv.writer(f)
+           csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y", "Still"])
+           for i in range(0,s.totalframes-5):  # last 5 frames are dodge
+               d=s.getrow(i) 
+               row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
+               csvwrite.writerow(row)
 
 
 # takes the slug trails as a set and draws the pics    

@@ -194,26 +194,17 @@ fn=outputdir+"enddisks_raw.png"
 cv2.imwrite(fn,warp)
 thisslug.find_pauses()
 thisslug.list_pauses()
-thisslug.list_trails()
 
 # all processing done let's stick it all in a csv file
 
 
 #for output filename we want to use the directory; for reading in we need a
 #slash on the end, let's tidy this up a bit
-outputcsvfile=outputdir+"summary.csv"
-with open(outputcsvfile, 'a+') as f:
-   csvwrite=csv.writer(f)
-   csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y", "Still"])
+outputcsvfile=outputdir+"pathdata.csv"
+thisslug.write_trail_data_to_file(outputcsvfile,flist)
 
-
-with open(outputcsvfile, 'a+') as f:
-   csvwrite=csv.writer(f)
-   for i in range(0,n-5):  # last 5 frames are dodge
-       d=thisslug.getrow(i) 
-       row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
-       csvwrite.writerow(row)
-
+outputcsvfile=outputdir+"trailoverview.csv"
+thisslug.write_trail_metadata_to_file(outputcsvfile)
 #save occupancy grid
 ofn=outputdir+"occupancy.csv"
 a.save_occupancy(ofn)
