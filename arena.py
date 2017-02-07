@@ -71,5 +71,9 @@ class Arena:
         return(s.occupancy)
 
     def save_occupancy_image(s, fn):
+        logmat=np.where(s.occupancy>0, np.log(s.occupancy), 0)
+        plt.imshow(logmat, cmap='hot', interpolation='nearest')
+        fn2=fn+".log.png"
+        plt.savefig(fn2)
         plt.imshow(s.occupancy, cmap='hot', interpolation='nearest')
         plt.savefig(fn)
