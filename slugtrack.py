@@ -203,6 +203,9 @@ thisslug.list_pauses()
 outputcsvfile=outputdir+"pathdata.csv"
 thisslug.write_trail_data_to_file(outputcsvfile,flist)
 
+outputcsvfile=outputdir+"pauseoverview.csv"
+thisslug.write_pause_data_to_file(outputcsvfile)
+
 outputcsvfile=outputdir+"trailoverview.csv"
 thisslug.write_trail_metadata_to_file(outputcsvfile)
 #save occupancy grid

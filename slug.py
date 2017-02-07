@@ -329,6 +329,13 @@ class Slug:
                row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
                csvwrite.writerow(row)
 
+    def write_pause_data_to_file(s,fn):
+        with open(fn, 'a+') as f:
+           csvwrite=csv.writer(f)
+           csvwrite.writerow(["framestart","arena x","arena y","image x", "image y", "duration", "endframe"])
+           for pause in s.slugstills:
+                row=(pause[0],pause[1],pause[2],s.icurrentslugtrail[pause[0]][0],s.icurrentslugtrail[pause[0]][1],pause[3],pause[3]+pause[0])
+                csvwrite.writerow(row)
 
 # takes the slug trails as a set and draws the pics    
     def visualise_trails(s,movingav,filelist,odir):    
