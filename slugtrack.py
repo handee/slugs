@@ -15,7 +15,11 @@ from arena import Arena
 
 #magic number to get rid of some baby slugs
 slugsize=5
-
+#total frames in trials is the length of the trials across all slug
+#experiments
+total_frames_in_trials=57595
+#if it falls short of this, the program prints an error; if it over-runs
+#then it cuts short at this number
 
 #read in config file
 current_config_file=sys.argv[-1]
@@ -180,7 +184,8 @@ for fname in flist:
 
         a.update_location(corners);
 
-
+     if (n > total_frames_in_trials):
+        break
 #open cv window management/redraw stuff
      ch = cv2.waitKey(5)
      if ch == 27:
@@ -208,6 +213,10 @@ thisslug.write_pause_data_to_file(outputcsvfile)
 
 outputcsvfile=outputdir+"trailoverview.csv"
 thisslug.write_trail_metadata_to_file(outputcsvfile)
+
+outputcsvfile=outputdir+"shortsummary.csv"
+thisslug.write_single_line_summary(outputcsvfile)
+
 #save occupancy grid
 ofn=outputdir+"occupancy.csv"
 a.save_occupancy(ofn)
@@ -222,4 +231,8 @@ filelist = glob.glob(rmstring)
 for f in filelist:
     os.remove(f)
 
+if (n < total_frames_in_trials):
+    print "This trial only had {} frames, and we expected {}".format(n,total_frames_in_trials)
+print "All output files can be found in:"
+print "    {}".format(outputdir)
 

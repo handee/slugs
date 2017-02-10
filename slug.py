@@ -8,11 +8,8 @@ import csv
 
 
 class Slug:
-    kalman = cv2.KalmanFilter(4,2)
-    kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
-    kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
-    kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
-   
+   # various process-level variables to store between frame slug info
+   # whilst the tracking is going on 
     lastslugx=0
     lastslugy=0
     slugx=0
@@ -23,24 +20,45 @@ class Slug:
     iky=0
     ix=0
     iy=0
+    totalframes=0
+    
+    still=1 #is the slug still? (starts off still)
+    ar=[] # arena
+
+# variables to do with smoothing - not actually output at the moment
+    kalman = cv2.KalmanFilter(4,2)
+    kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
+    kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
+    kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
+    kslug=[]
+   
+# variables to hold the slugtrail as it's being calculated
     currentslugtrail=[] # complete slug trail
     kalmanslugtrail=[] # complete kalman slug trail
     icurrentslugtrail=[] #image coords not arena coords
     ikalmanslugtrail=[] # image coords not arena coords
-    kslug=[]
+
+# after the tracking, segment the slugtrail into sections  
     slugstills=[]  # array of still locations, segmented, 
     slugtrails=[]  # array of trails, segmented, arena then image coords
+
+# summary data stored in these ones
     traillengths=[]# pointbypoint lengths of slugtrails
     trailstartend=[]# start to end distance
     trailduration=[]# start to end distance
+    totalpathlen=0
+    totaltimestill=0
+    totaltimemoving=0
+    totalpathdistance=0
+
+# finally some magic number variables 
     slugmindist=20
     bigblobthresh=200
     tinyslugthresh=3
-    still=1 #is the slug still? (starts off still)
-    ar=[] # arena
-    smoothing_window=9 # for smoothing the stillness or otherwise; 
-                       #it's an average
-    totalframes=0
+    
+    smoothing_window=9 # for evening out our estimate of whether the
+                       # slug is still or not - take an average over 9 frame 
+
     def __init__(s,a,x,y):
         print "initialising at {},{}".format(x,y)
         s.ar=a
@@ -295,7 +313,11 @@ class Slug:
 #
 
 # takes the slug trails as a set, calculates metadata
-    def calculate_metadata(s):    
+    def calculate_metadata(s):     
+        s.totalpathlen=0
+        s.totaltimestill=0
+        s.totaltimemoving=0
+        s.totalpathdistance=0
         for currenttrail in s.slugtrails:
             pathlen=0
             for i in range (1,len(currenttrail)):
@@ -308,6 +330,11 @@ class Slug:
             disttravelledy=(currenttrail[0][2]-currenttrail[-1][2])*(currenttrail[0][2]-currenttrail[-1][2])
             s.trailstartend.append(math.sqrt(disttravelledx+disttravelledy))
             s.trailduration.append(currenttrail[-1][0]-currenttrail[0][0])
+            s.totalpathlen+=pathlen
+            s.totaltimemoving+=s.trailduration[-1]
+            s.totalpathdistance+=s.trailstartend[-1]
+        for pause in s.slugstills:
+            s.totaltimestill+=pause[3]
 
 
     def write_trail_metadata_to_file(s,fn):
@@ -319,6 +346,14 @@ class Slug:
                 row = (currenttrail[0][0],currenttrail[0][1],currenttrail[0][2],currenttrail[0][3],currenttrail[0][4],currenttrail[-1][1], currenttrail[-1][2], currenttrail[-1][3],currenttrail[-1][4],s.traillengths[n],s.trailstartend[n],s.trailduration[n])
                 csvwrite.writerow(row)
                 n+=1
+
+    def write_single_line_summary(s,fn):
+        with open(fn, 'a+') as f:
+           csvwrite=csv.writer(f)
+           row = ("total trail length", "total time moving", "total time still")
+           csvwrite.writerow(row)
+           row = (s.totalpathlen,s.totaltimemoving,s.totaltimestill)
+           csvwrite.writerow(row)
 
     def write_trail_data_to_file(s,fn,flist):
         with open(fn, 'a+') as f:
