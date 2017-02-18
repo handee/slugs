@@ -53,8 +53,12 @@ difference_thresh= 30
 config.set('s0','difference_threshold',difference_thresh) 
 
 # read directory, get list of files, sort
-flist=glob.glob(inputdir+"*.jpg")
-flist.sort()
+subdirs=glob.glob(inputdir+"*/")
+flist=[]
+for subdir in subdirs:
+    sflist=glob.glob(subdir+"*.jpg")
+    sflist.sort()
+    flist=flist+sflist
 shakepics=[]
 
 n=0 # frame number
