@@ -30,10 +30,6 @@ inputdir= config.get(setup_section,'image_folder')
 print inputdir
 fbuffer=config.getint(setup_section,'frames_of_background') 
 difference_thresh=config.getint(setup_section,'difference_threshold') 
-# read directory, get list of files, sort
-flist=glob.glob(inputdir+"*.jpg")
-flist.sort()
-
 #inputdir should have a / at the end. check this is the case, also
 #setup output directory to be inputdir_out
 if (inputdir.endswith('/')):
@@ -41,6 +37,15 @@ if (inputdir.endswith('/')):
 else:
    outputdir=inputdir+"_out/"
    inputdir+='/'
+
+# read directory, get list of files, sort
+subdirs=glob.glob(inputdir+"*/")
+flist=[]
+for subdir in subdirs:
+    sflist=glob.glob(subdir+"*.jpg")
+    sflist.sort()
+    flist=flist+sflist
+
 
 print "Output will be saved to {}".format(outputdir)
 # set up output dir if it doesn't exist
