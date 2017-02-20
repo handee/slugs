@@ -14,10 +14,6 @@ class Slug:
     lastslugy=0
     slugx=0
     slugy=0
-    kslugx=0
-    kslugy=0
-    ikx=0
-    iky=0
     ix=0
     iy=0
     totalframes=0
@@ -25,18 +21,9 @@ class Slug:
     still=1 #is the slug still? (starts off still)
     ar=[] # arena
 
-# variables to do with smoothing - not actually output at the moment
-    kalman = cv2.KalmanFilter(4,2)
-    kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
-    kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
-    kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
-    kslug=[]
-   
 # variables to hold the slugtrail as it's being calculated
     currentslugtrail=[] # complete slug trail
-    kalmanslugtrail=[] # complete kalman slug trail
     icurrentslugtrail=[] #image coords not arena coords
-    ikalmanslugtrail=[] # image coords not arena coords
 
 # after the tracking, segment the slugtrail into sections  
     slugstills=[]  # array of still locations, segmented, 
@@ -101,20 +88,10 @@ class Slug:
         s.currentslugtrail.append([n,s.slugx,s.slugy,s.still])
         s.ar.increment_occupancy(s.slugx,s.slugy)
          
-        #apply Kalman filter; not actually used but saved just in case it
-        #turns out to be useful in the future
-        slugloc=np.array([[np.float32(s.currentslugtrail[-1][1])],[np.float32(s.currentslugtrail[-1][2])]])
-        s.kalman.correct(slugloc)
-        s.kslug=s.kalman.predict()
-        s.kslugx=int(s.kslug[0])
-        s.kslugy=int(s.kslug[1])
-        s.kalmanslugtrail.append((s.kslugx,s.kslugy))
       
         # transform back into image coords and save those as well
         s.ix,s.iy=s.ar.transform_point_to_image(s.slugx,s.slugy)
-        s.ikx,s.iky=s.ar.transform_point_to_image(s.kslugx,s.kslugy)
         s.icurrentslugtrail.append((s.ix,s.iy))
-        s.ikalmanslugtrail.append((s.ikx,s.iky))
         s.totalframes+=1
         return(num_blobs, centroids, stats)
 
@@ -144,7 +121,7 @@ class Slug:
 
 
     def return_locations(s):
-        return ([s.slugx,s.slugy,s.kslugx,s.kslugy,s.ix,s.iy,s.ikx,s.iky])    
+        return ([s.slugx,s.slugy,s.ix,s.iy])    
 
     # takes a box and a frame and looks back through history till it finds
     # the time and place that the slug was most recently not 
@@ -203,7 +180,6 @@ class Slug:
            cv2.circle(img,(int(s.lastslugx),int(s.lastslugy)),2,(0,0,255),-1)
         else:
            cv2.circle(img,(int(s.slugx),int(s.slugy)),2,(0,255,0),-1)
-        cv2.circle(img,(int(s.kslugx),int(s.kslugy)),2,(255,0,0),1)
         return img
  
     def highlight_im(s,img):
@@ -212,7 +188,6 @@ class Slug:
            cv2.circle(img,(int(s.ix),int(s.iy)),2,(0,0,255),-1)
         else:
            cv2.circle(img,(int(s.ix),int(s.iy)),2,(0,255,0),-1)
-        cv2.circle(img,(int(s.ikx),int(s.iky)),2,(255,0,0),1)
         return img
  
 
@@ -358,10 +333,10 @@ class Slug:
     def write_trail_data_to_file(s,fn,flist):
         with open(fn, 'a+') as f:
            csvwrite=csv.writer(f)
-           csvwrite.writerow(["filename","Image x","Image y","Kalman image x","Kalman image y","Arena x","Arena y","Kalman arena x","Kalman arena y", "Still"])
+           csvwrite.writerow(["filename","Image x","Image y","Arena x","Arena y", "Still"])
            for i in range(0,s.totalframes-5):  # last 5 frames are dodge
                d=s.getrow(i) 
-               row=(flist[i],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8])
+               row=(flist[i],d[0],d[1],d[2],d[3],d[4])
                csvwrite.writerow(row)
 
     def write_pause_data_to_file(s,fn):
@@ -393,5 +368,5 @@ class Slug:
  
         
     def getrow(s,n): 
-       return(s.icurrentslugtrail[n][0],s.icurrentslugtrail[n][1],s.ikalmanslugtrail[n][0],s.ikalmanslugtrail[n][1],s.currentslugtrail[n][1],s.currentslugtrail[n][2],s.kalmanslugtrail[n][0],s.kalmanslugtrail[n][1],s.currentslugtrail[n][3])
+       return(s.icurrentslugtrail[n][0],s.icurrentslugtrail[n][1],s.currentslugtrail[n][1],s.currentslugtrail[n][2],s.currentslugtrail[n][3])
 
